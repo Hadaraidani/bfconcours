@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convertisseur questions.ts → questions-migration.ts</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .code-area {
+      font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      tab-size: 2;
+    }
+  </style>
+</head>
+<body class="bg-gray-900 min-h-screen text-white">
+  <div class="container mx-auto p-4 max-w-7xl">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl p-6 mb-6 shadow-xl">
+      <h1 class="text-2xl md:text-3xl font-bold text-center">
+        🔄 Convertisseur questions.ts → questions-migration.ts
+      </h1>
+      <p class="text-center text-emerald-100 mt-2">
+        Convertit automatiquement le format complexe vers un format simple pour Supabase
+      </p>
+    </div>
+
+    <!-- Instructions rapides -->
+    <div class="bg-blue-900/50 border border-blue-500 rounded-lg p-4 mb-6">
+      <h3 class="font-bold text-blue-300 mb-2">📋 Instructions rapides :</h3>
+      <ol class="list-decimal list-inside text-blue-200 space-y-1 text-sm">
+        <li>Ouvrez <code class="bg-blue-800 px-1 rounded">src/data/questions.ts</code> dans VS Code</li>
+        <li>Sélectionnez tout le contenu (Ctrl+A) et copiez (Ctrl+C)</li>
+        <li>Collez dans la zone "Entrée" ci-dessous</li>
+        <li>Cliquez sur "🔄 Convertir"</li>
+        <li>Téléchargez ou copiez le fichier généré</li>
+        <li>Remplacez le contenu de <code class="bg-blue-800 px-1 rounded">src/data/questions-migration.ts</code></li>
+        <li>Exécutez <code class="bg-blue-800 px-1 rounded">npm run migrate</code></li>
+      </ol>
+    </div>
+
+    <!-- Zone principale -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <!-- Entrée -->
+      <div class="bg-gray-800 rounded-xl p-4 shadow-lg">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-emerald-400">📥 Entrée (questions.ts)</h2>
+          <button onclick="loadExample()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm">
+            📝 Charger exemple
+          </button>
+        </div>
+        <textarea 
+          id="input" 
+          class="code-area w-full h-96 bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-300 focus:border-emerald-500 focus:outline-none resize-none"
+          placeholder="Collez ici le contenu de votre fichier questions.ts..."
+        ></textarea>
+      </div>
+
+      <!-- Sortie -->
+      <div class="bg-gray-800 rounded-xl p-4 shadow-lg">
+        <div class="flex justify-between items-center mb-3">
+          <h2 class="text-lg font-bold text-teal-400">📤 Sortie (questions-migration.ts)</h2>
+          <div class="flex gap-2">
+            <button onclick="copyOutput()" class="bg-teal-600 hover:bg-teal-500 px-3 py-1 rounded text-sm">
+              📋 Copier
+            </button>
+            <button onclick="downloadOutput()" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-sm">
+              💾 Télécharger
+            </button>
+          </div>
+        </div>
+        <textarea 
+          id="output" 
+          class="code-area w-full h-96 bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-300 focus:border-teal-500 focus:outline-none resize-none"
+          placeholder="Le code généré apparaîtra ici..."
+          readonly
+        ></textarea>
+      </div>
+    </div>
+
+    <!-- Bouton de conversion -->
+    <div class="flex justify-center mb-6">
+      <button 
+        onclick="convert()" 
+        class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold py-4 px-12 rounded-xl text-xl shadow-lg transform hover:scale-105 transition-all"
+      >
+        🔄 CONVERTIR
+      </button>
+    </div>
+
+    <!-- Statistiques -->
+    <div id="stats" class="hidden bg-gray-800 rounded-xl p-6 shadow-lg">
+      <h2 class="text-xl font-bold text-emerald-400 mb-4">📊 Statistiques de conversion</h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="statsGrid">
+        <!-- Rempli dynamiquement -->
+      </div>
+      <div id="concoursList" class="mt-4 border-t border-gray-700 pt-4">
+        <!-- Liste des concours -->
+      </div>
+    </div>
+
+    <!-- Erreurs -->
+    <div id="errors" class="hidden bg-red-900/50 border border-red-500 rounded-xl p-4 mt-4">
+      <h3 class="font-bold text-red-300 mb-2">❌ Erreurs :</h3>
+      <pre id="errorText" class="text-red-200 text-sm whitespace-pre-wrap"></pre>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PARSER PRINCIPAL - Analyse le fichier questions.ts
+    // =========================================================================
+    
+    function parseQuestionsTS(content) {
+      const result = {
+        categories: [],
+        concours: [],
+        questions: [],
+        errors: []
+      };
+
+      try {
+        // Nettoyer le contenu
+        let cleaned = content
+          .replace(/\/\*[\s\S]*?\*\//g, '') // Supprimer commentaires multi-lignes
+          .replace(/\/\/.*$/gm, '');        // Supprimer commentaires single-line
+
+        // 1. Extraire categoryLabels pour avoir les noms des catégories
+        const categoryLabelsMap = {};
+        const categoryLabelsMatch = cleaned.match(/export\s+const\s+categoryLabels[^=]*=\s*\{([^}]+)\}/s);
+        if (categoryLabelsMatch) {
+          const labelsContent = categoryLabelsMatch[1];
+          const labelRegex = /(\w+)\s*:\s*['"]([^'"]+)['"]/g;
+          let match;
+          while ((match = labelRegex.exec(labelsContent)) !== null) {
+            categoryLabelsMap[match[1]] = match[2];
+          }
+        }
+
+        // 2. Extraire categoryLabelsShort
+        const categoryLabelsShortMap = {};
+        const categoryLabelsShortMatch = cleaned.match(/export\s+const\s+categoryLabelsShort[^=]*=\s*\{([^}]+)\}/s);
+        if (categoryLabelsShortMatch) {
+          const shortContent = categoryLabelsShortMatch[1];
+          const shortRegex = /(\w+)\s*:\s*['"]([^'"]+)['"]/g;
+          let match;
+          while ((match = shortRegex.exec(shortContent)) !== null) {
+            categoryLabelsShortMap[match[1]] = match[2];
+          }
+        }
+
+        // 3. Trouver tous les blocs de catégories (xxxCategories)
+        const categoriesBlocks = {};
+        const catBlockRegex = /const\s+(\w+)Categories\s*:\s*CategoryConfig\[\]\s*=\s*\[([\s\S]*?)\];/g;
+        let catMatch;
+        while ((catMatch = catBlockRegex.exec(cleaned)) !== null) {
+          const concoursPrefix = catMatch[1].toLowerCase();
+          const catContent = catMatch[2];
+          
+          const categories = [];
+          const catRegex = /\{\s*id\s*:\s*['"]([^'"]+)['"]\s*,\s*name\s*:\s*['"]([^'"]+)['"]\s*,\s*questionsCount\s*:\s*(\d+)\s*\}/g;
+          let cat;
+          while ((cat = catRegex.exec(catContent)) !== null) {
+            categories.push({
+              id: cat[1],
+              name: cat[2],
+              questionsCount: parseInt(cat[3])
+            });
+          }
+          categoriesBlocks[concoursPrefix] = categories;
+        }
+
+        // 4. Trouver tous les blocs de questions (xxxQuestions)
+        const questionsBlocks = {};
+        const questBlockRegex = /const\s+(\w+)Questions\s*:\s*Question\[\]\s*=\s*\[([\s\S]*?)\];\s*(?=\/\/|const|export|$)/g;
+        let questMatch;
+        while ((questMatch = questBlockRegex.exec(cleaned)) !== null) {
+          const concoursPrefix = questMatch[1].toLowerCase();
+          const questContent = questMatch[2];
+          
+          const questions = parseQuestionsBlock(questContent);
+          questionsBlocks[concoursPrefix] = questions;
+        }
+
+        // 5. Extraire les informations des concours depuis concoursData
+        const concoursDataMatch = cleaned.match(/export\s+const\s+concoursData\s*:\s*Concours\[\]\s*=\s*\[([\s\S]*?)\];/);
+        if (concoursDataMatch) {
+          const concoursContent = concoursDataMatch[1];
+          
+          // Parser chaque concours
+          const concoursRegex = /\{\s*id\s*:\s*['"]([^'"]+)['"][\s\S]*?name\s*:\s*['"]([^'"]+)['"][\s\S]*?description\s*:\s*['"]([^'"]+)['"][\s\S]*?icon\s*:\s*['"]([^'"]+)['"][\s\S]*?categories\s*:\s*(\w+)[\s\S]*?questions\s*:\s*(\w+)[\s\S]*?duration\s*:\s*(\d+)[\s\S]*?available\s*:\s*(true|false)/g;
+          
+          let concoursMatch;
+          while ((concoursMatch = concoursRegex.exec(concoursContent)) !== null) {
+            const id = concoursMatch[1];
+            const name = concoursMatch[2].replace(/\\'/g, "'");
+            const description = concoursMatch[3].replace(/\\'/g, "'");
+            const icon = concoursMatch[4];
+            const categoriesVarName = concoursMatch[5].toLowerCase().replace('categories', '');
+            const questionsVarName = concoursMatch[6].toLowerCase().replace('questions', '');
+            const duration = parseInt(concoursMatch[7]);
+            const available = concoursMatch[8] === 'true';
+
+            // Récupérer les catégories associées
+            const concoursCategories = categoriesBlocks[categoriesVarName] || [];
+            
+            // Récupérer les questions associées
+            const concoursQuestions = questionsBlocks[questionsVarName] || [];
+
+            // Ajouter les catégories uniques
+            concoursCategories.forEach(cat => {
+              if (!result.categories.find(c => c.id === cat.id)) {
+                result.categories.push({
+                  id: cat.id,
+                  name: cat.name,
+                  name_short: categoryLabelsShortMap[cat.id] || cat.id.substring(0, 3).toUpperCase()
+                });
+              }
+            });
+
+            // Créer les liaisons concours-catégories
+            const categoriesLinks = concoursCategories.map((cat, index) => ({
+              category_id: cat.id,
+              questions_count: cat.questionsCount,
+              display_order: index + 1
+            }));
+
+            // Ajouter le concours
+            result.concours.push({
+              id: id,
+              name: name,
+              description: description,
+              icon: icon,
+              duration: duration,
+              available: available,
+              categories: categoriesLinks
+            });
+
+            // Ajouter les questions
+            concoursQuestions.forEach(q => {
+              result.questions.push({
+                concours_id: id,
+                category_id: q.category,
+                question_text: q.question,
+                options: q.options,
+                correct_answers: q.correctAnswers,
+                has_latex: q.hasLatex || false,
+                image_url: q.image || null
+              });
+            });
+          }
+        }
+
+      } catch (error) {
+        result.errors.push(`Erreur de parsing: ${error.message}`);
+      }
+
+      return result;
+    }
+
+    // Parser un bloc de questions
+    function parseQuestionsBlock(content) {
+      const questions = [];
+      
+      // Regex pour extraire chaque question
+      // Format: { id: X, category: 'xxx', question: "...", options: [...], correctAnswers: [...], hasLatex?: true, image?: '...' }
+      
+      // On va parser caractère par caractère pour gérer les structures imbriquées
+      let i = 0;
+      while (i < content.length) {
+        // Chercher le début d'un objet
+        const start = content.indexOf('{', i);
+        if (start === -1) break;
+        
+        // Trouver la fin de l'objet (en comptant les accolades)
+        let depth = 1;
+        let end = start + 1;
+        while (end < content.length && depth > 0) {
+          if (content[end] === '{') depth++;
+          else if (content[end] === '}') depth--;
+          end++;
+        }
+        
+        if (depth === 0) {
+          const objStr = content.substring(start, end);
+          const question = parseQuestionObject(objStr);
+          if (question) {
+            questions.push(question);
+          }
+        }
+        
+        i = end;
+      }
+      
+      return questions;
+    }
+
+    // Parser un objet question individuel
+    function parseQuestionObject(objStr) {
+      try {
+        // Extraire id
+        const idMatch = objStr.match(/id\s*:\s*(\d+)/);
+        const id = idMatch ? parseInt(idMatch[1]) : 0;
+
+        // Extraire category
+        const categoryMatch = objStr.match(/category\s*:\s*['"]([^'"]+)['"]/);
+        const category = categoryMatch ? categoryMatch[1] : '';
+
+        // Extraire question (peut contenir des guillemets échappés)
+        const questionMatch = objStr.match(/question\s*:\s*["'](.+?)["']\s*,\s*options/s);
+        let question = questionMatch ? questionMatch[1] : '';
+        question = question.replace(/\\"/g, '"').replace(/\\'/g, "'");
+
+        // Extraire options
+        const optionsMatch = objStr.match(/options\s*:\s*\[([\s\S]*?)\]\s*,\s*correct/);
+        const options = [];
+        if (optionsMatch) {
+          const optionsStr = optionsMatch[1];
+          const optRegex = /["']([^"']*(?:\\.[^"']*)*)["']/g;
+          let opt;
+          while ((opt = optRegex.exec(optionsStr)) !== null) {
+            let optText = opt[1].replace(/\\"/g, '"').replace(/\\'/g, "'").replace(/\\\\/g, '\\');
+            options.push(optText);
+          }
+        }
+
+        // Extraire correctAnswers
+        const correctMatch = objStr.match(/correctAnswers\s*:\s*\[([\d,\s]+)\]/);
+        const correctAnswers = correctMatch 
+          ? correctMatch[1].split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+          : [];
+
+        // Extraire hasLatex
+        const hasLatexMatch = objStr.match(/hasLatex\s*:\s*(true|false)/);
+        const hasLatex = hasLatexMatch ? hasLatexMatch[1] === 'true' : false;
+
+        // Extraire image
+        const imageMatch = objStr.match(/image\s*:\s*['"]([^'"]+)['"]/);
+        const image = imageMatch ? imageMatch[1] : null;
+
+        if (category && question && options.length > 0) {
+          return {
+            id,
+            category,
+            question,
+            options,
+            correctAnswers,
+            hasLatex,
+            image
+          };
+        }
+      } catch (e) {
+        console.error('Erreur parsing question:', e);
+      }
+      
+      return null;
+    }
+
+    // =========================================================================
+    // GÉNÉRATEUR - Crée le fichier questions-migration.ts
+    // =========================================================================
+    
+    function generateMigrationFile(data) {
+      let output = `// ============================================================================
+// FICHIER DE MIGRATION - questions-migration.ts
+// Généré automatiquement le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}
+// 
+// Ce fichier contient toutes les données prêtes à être migrées vers Supabase.
+// Commande: npm run migrate
+// ============================================================================
+
+`;
+
+      // 1. CATEGORIES
+      output += `// ============================================================================
+// 1. CATÉGORIES (${data.categories.length} catégories)
+// ============================================================================
+
+export const CATEGORIES = [
+`;
+      data.categories.forEach((cat, index) => {
+        output += `  { id: '${cat.id}', name: '${escapeString(cat.name)}', name_short: '${escapeString(cat.name_short)}' }`;
+        output += index < data.categories.length - 1 ? ',\n' : '\n';
+      });
+      output += `];\n\n`;
+
+      // 2. CONCOURS
+      output += `// ============================================================================
+// 2. CONCOURS (${data.concours.length} concours)
+// ============================================================================
+
+export const CONCOURS = [
+`;
+      data.concours.forEach((concours, cIndex) => {
+        output += `  {
+    id: '${concours.id}',
+    name: '${escapeString(concours.name)}',
+    description: '${escapeString(concours.description)}',
+    icon: '${escapeString(concours.icon)}',
+    duration: ${concours.duration},
+    available: ${concours.available},
+    categories: [
+`;
+        concours.categories.forEach((cat, catIndex) => {
+          output += `      { category_id: '${cat.category_id}', questions_count: ${cat.questions_count}, display_order: ${cat.display_order} }`;
+          output += catIndex < concours.categories.length - 1 ? ',\n' : '\n';
+        });
+        output += `    ]
+  }`;
+        output += cIndex < data.concours.length - 1 ? ',\n' : '\n';
+      });
+      output += `];\n\n`;
+
+      // 3. QUESTIONS
+      output += `// ============================================================================
+// 3. QUESTIONS (${data.questions.length} questions)
+// ============================================================================
+
+export const QUESTIONS = [
+`;
+      data.questions.forEach((q, qIndex) => {
+        const optionsStr = q.options.map(o => `'${escapeString(o)}'`).join(', ');
+        const correctStr = q.correct_answers.join(', ');
+        
+        output += `  { concours_id: '${q.concours_id}', category_id: '${q.category_id}', question_text: '${escapeString(q.question_text)}', options: [${optionsStr}], correct_answers: [${correctStr}]`;
+        
+        if (q.has_latex) {
+          output += `, has_latex: true`;
+        }
+        if (q.image_url) {
+          output += `, image_url: '${escapeString(q.image_url)}'`;
+        }
+        
+        output += ` }`;
+        output += qIndex < data.questions.length - 1 ? ',\n' : '\n';
+      });
+      output += `];\n`;
+
+      return output;
+    }
+
+    // Échapper les caractères spéciaux pour les strings
+    function escapeString(str) {
+      if (!str) return '';
+      return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+    }
+
+    // =========================================================================
+    // INTERFACE UTILISATEUR
+    // =========================================================================
+    
+    function convert() {
+      const input = document.getElementById('input').value;
+      const errorDiv = document.getElementById('errors');
+      const errorText = document.getElementById('errorText');
+      const statsDiv = document.getElementById('stats');
+      const statsGrid = document.getElementById('statsGrid');
+      const concoursList = document.getElementById('concoursList');
+      
+      // Cacher les erreurs et stats précédentes
+      errorDiv.classList.add('hidden');
+      statsDiv.classList.add('hidden');
+      
+      if (!input.trim()) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = "Veuillez coller le contenu de questions.ts";
+        return;
+      }
+
+      // Parser le fichier
+      const data = parseQuestionsTS(input);
+      
+      // Vérifier les erreurs
+      if (data.errors.length > 0) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = data.errors.join('\n');
+      }
+
+      // Vérifier si on a trouvé des données
+      if (data.concours.length === 0) {
+        errorDiv.classList.remove('hidden');
+        errorText.textContent = (errorText.textContent ? errorText.textContent + '\n\n' : '') + 
+          "Aucun concours trouvé. Vérifiez que le fichier contient bien 'export const concoursData'.";
+        return;
+      }
+
+      // Générer le fichier de sortie
+      const output = generateMigrationFile(data);
+      document.getElementById('output').value = output;
+
+      // Afficher les statistiques
+      const latexCount = data.questions.filter(q => q.has_latex).length;
+      
+      statsGrid.innerHTML = `
+        <div class="bg-emerald-900/50 rounded-lg p-4 text-center">
+          <div class="text-3xl font-bold text-emerald-400">${data.concours.length}</div>
+          <div class="text-sm text-emerald-200">Concours</div>
+        </div>
+        <div class="bg-teal-900/50 rounded-lg p-4 text-center">
+          <div class="text-3xl font-bold text-teal-400">${data.categories.length}</div>
+          <div class="text-sm text-teal-200">Catégories</div>
+        </div>
+        <div class="bg-blue-900/50 rounded-lg p-4 text-center">
+          <div class="text-3xl font-bold text-blue-400">${data.questions.length}</div>
+          <div class="text-sm text-blue-200">Questions</div>
+        </div>
+        <div class="bg-purple-900/50 rounded-lg p-4 text-center">
+          <div class="text-3xl font-bold text-purple-400">${latexCount}</div>
+          <div class="text-sm text-purple-200">Avec LaTeX</div>
+        </div>
+      `;
+
+      concoursList.innerHTML = '<h3 class="font-bold text-gray-300 mb-2">📋 Détail des concours :</h3><div class="space-y-2">' +
+        data.concours.map(c => {
+          const qCount = data.questions.filter(q => q.concours_id === c.id).length;
+          return `<div class="flex justify-between items-center bg-gray-700/50 rounded px-3 py-2">
+            <span class="text-gray-200">${c.name}</span>
+            <span class="text-emerald-400 font-mono">${qCount} questions, ${c.categories.length} catégories</span>
+          </div>`;
+        }).join('') + '</div>';
+
+      statsDiv.classList.remove('hidden');
+    }
+
+    function copyOutput() {
+      const output = document.getElementById('output').value;
+      if (!output) {
+        alert('Aucun contenu à copier. Effectuez d\'abord une conversion.');
+        return;
+      }
+      navigator.clipboard.writeText(output).then(() => {
+        alert('✅ Copié dans le presse-papier !');
+      });
+    }
+
+    function downloadOutput() {
+      const output = document.getElementById('output').value;
+      if (!output) {
+        alert('Aucun contenu à télécharger. Effectuez d\'abord une conversion.');
+        return;
+      }
+      
+      const blob = new Blob([output], { type: 'text/typescript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'questions-migration.ts';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function loadExample() {
+      const example = `import { Question, Concours, Category, CategoryConfig } from '../types';
+
+export const categoryLabels: Partial<Record<Category, string>> = {
+  francais: 'Français',
+  maths: 'Mathématiques',
+  culture: 'Culture Générale',
+};
+
+export const categoryLabelsShort: Partial<Record<Category, string>> = {
+  francais: 'Fra',
+  maths: 'Mat',
+  culture: 'Cul',
+};
+
+const exempleCategories: CategoryConfig[] = [
+  { id: 'francais', name: 'Français', questionsCount: 3 },
+  { id: 'maths', name: 'Mathématiques', questionsCount: 2 },
+];
+
+const exempleQuestions: Question[] = [
+  { id: 1, category: 'francais', question: "Quel est le pluriel de 'cheval' ?", options: ["Chevals", "Chevaux", "Cheveux"], correctAnswers: [1] },
+  { id: 2, category: 'francais', question: "Quelle figure de style ?", options: ["Métaphore", "Comparaison"], correctAnswers: [0] },
+  { id: 3, category: 'francais', question: "Conjuguez 'finir' au passé simple (3ème pluriel)", options: ["Finissent", "Finirent", "Finissèrent"], correctAnswers: [1] },
+  { id: 4, category: 'maths', question: "Calculer : $2^3$", options: ["6", "8", "9"], correctAnswers: [1], hasLatex: true },
+  { id: 5, category: 'maths', question: "Résoudre : $x + 5 = 10$", options: ["x = 3", "x = 5", "x = 15"], correctAnswers: [1], hasLatex: true },
+];
+
+export const concoursData: Concours[] = [
+  {
+    id: 'exemple',
+    name: 'Concours Exemple',
+    description: 'Un concours de démonstration - 5 questions',
+    icon: 'EX',
+    categories: exempleCategories,
+    questions: exempleQuestions,
+    duration: 30,
+    available: true,
+  },
+];`;
+
+      document.getElementById('input').value = example;
+    }
+  </script>
+</body>
+</html>
