@@ -151,7 +151,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
 
   if (error || !correction) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-yellow-50">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-100 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -180,7 +180,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
       {/* Header */}
-     <div className="bg-gradient-to-r from-amber-600 to-yellow-700 text-white py-6 px-4">
+      <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-6 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center justify-between mb-4">
             <button
@@ -210,7 +210,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Informations du candidat */}
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <svg className="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -259,7 +259,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-4xl font-bold text-gray-800">{correction.score}</span>
+                <span className="text-4xl font-bold text-gray-800">{correction.scoreFinal ?? correction.score}</span>
                 <span className="text-sm text-gray-500">/ {correction.totalQuestions}</span>
               </div>
             </div>
@@ -280,6 +280,27 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
               </div>
             </div>
           </div>
+
+          {/* Détail du score si pénalité de surveillance */}
+          {correction.proctoringPenalty && correction.proctoringPenalty !== 0 && (
+            <div className="mt-6 border-t pt-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 text-center">Détail du calcul</h3>
+              <div className="bg-gray-50 rounded-xl p-4 max-w-md mx-auto">
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-gray-600">Score des réponses</span>
+                  <span className="font-bold text-gray-800">{correction.score}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                  <span className="text-orange-600">Pénalité de surveillance</span>
+                  <span className="font-bold text-orange-600">{correction.proctoringPenalty}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 bg-blue-50 rounded-lg px-2 mt-2">
+                  <span className="font-semibold text-blue-800">Score final</span>
+                  <span className="font-bold text-xl text-blue-800">{correction.scoreFinal ?? correction.score}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Performance par matière */}
@@ -478,6 +499,29 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
                         );
                       })}
                     </div>
+
+                    {/* Explication détaillée (si disponible) */}
+                    {q.explanation && q.explanation.trim() !== '' && (
+                      <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-blue-800 mb-2">Explication</h4>
+                            <div className="text-blue-700 text-sm leading-relaxed whitespace-pre-wrap">
+                              {q.has_latex ? (
+                                <MathRenderer text={q.explanation} />
+                              ) : (
+                                q.explanation
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );

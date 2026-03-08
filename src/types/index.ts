@@ -80,11 +80,39 @@ export interface UserAnswer {
   points?: number; // Points obtenus pour cette question (+1, -1, ou 0)
 }
 
+// Résumé d'une pénalité de proctoring
+export interface PenaltySummaryItem {
+  category: string;
+  count: number;
+  pointsPerOccurrence: number;
+  totalPoints: number;
+  severity: string;
+  explanation: string;
+}
+
+// Données de proctoring (surveillance)
+export interface ProctoringData {
+  trustScore: number;
+  totalPointsPenalty: number;
+  tabSwitches: number;
+  copyAttempts: number;
+  pasteAttempts: number;
+  keyboardShortcuts: number;
+  fullscreenExits: number;
+  rightClickAttempts?: number;
+  inspectAttempts?: number;
+  totalAlerts: number;
+  criticalAlerts: number;
+  graveAlerts?: number;
+  penaltySummary?: PenaltySummaryItem[]; // Détail des pénalités par catégorie
+}
+
 export interface QuizResult {
   user: UserInfo;
   concours: string;
   answers: UserAnswer[];
-  score: number;
+  score: number; // Score des réponses (bonnes - mauvaises)
+  scoreFinal?: number; // Score final après pénalités de surveillance
   totalQuestions: number;
   bonnesReponses: number;
   mauvaisesReponses: number;
@@ -94,6 +122,8 @@ export interface QuizResult {
   isCustomExam?: boolean; // Indique si c'est un examen généré personnalisé
   questions?: Question[]; // Les questions de l'examen (pour afficher la correction)
   submissionId?: string; // ID de la soumission Supabase (pour récupérer la correction)
+  proctoringData?: ProctoringData; // Données de surveillance anti-triche
+  proctoringPenalty?: number; // Pénalité de points due au proctoring (valeur positive)
 }
 
 export type Theme = 'green' | 'blue' | 'purple' | 'orange' | 'red';

@@ -2,24 +2,70 @@ import { useState, useEffect, useCallback } from 'react';
 import { Concours, UserAnswer, Question, Theme } from '../types';
 import { categoryLabels, categoryLabelsShort } from '../data/questions';
 import { MathRenderer, QuestionImage } from './MathRenderer';
+import ProctoringConsent from './ProctoringConsent';
+import {
+  startProctoringSession,
+  endProctoringSession,
+  ProctoringAlert,
+  getSessionSummary,
+} from '../services/proctoringService';
 
 interface QuizPageProps {
   concours: Concours;
-  onSubmit: (answers: UserAnswer[], duration: number) => void;
+  onSubmit: (answers: UserAnswer[], duration: number, proctoringData?: any) => void;
   onGoHome: () => void;
   theme: Theme;
+  enableProctoring?: boolean; // Activer/désactiver le proctoring
 }
 
-export function QuizPage({ concours, onSubmit, onGoHome, theme }: QuizPageProps) {
+export function QuizPage({ concours, onSubmit, onGoHome, theme, enableProctoring = true }: QuizPageProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<UserAnswer[]>([]);
   const [timeLeft, setTimeLeft] = useState(concours.duration * 60);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [mobileView, setMobileView] = useState<'question' | 'answers'>('question');
+  
+  // États pour le proctoring
+  const [showProctoringConsent, setShowProctoringConsent] = useState(enableProctoring);
+  const [proctoringStarted, setProctoringStarted] = useState(false);
+  const [proctoringAlerts, setProctoringAlerts] = useState<ProctoringAlert[]>([]);
+  const [proctoringPenalty, setProctoringPenalty] = useState(0);
+  const [showProctoringDetails, setShowProctoringDetails] = useState(false);
 
   const questions = concours.questions;
   const currentQuestion = questions[currentQuestionIndex];
+
+  // Démarrer le proctoring après consentement
+  const handleProctoringAccept = () => {
+    startProctoringSession({
+      enableTabDetection: true,
+      enableCopyPasteBlock: true,
+      enableFullscreenMode: true,
+      enableKeyboardDetection: true,
+      maxTabSwitches: 5,
+      onAlert: (alert) => {
+        setProctoringAlerts(prev => [...prev, alert]);
+        setProctoringPenalty(prev => prev + alert.pointsPenalty);
+      },
+    });
+    setProctoringStarted(true);
+    setShowProctoringConsent(false);
+  };
+
+  // Refuser le proctoring = retour à l'accueil
+  const handleProctoringDecline = () => {
+    onGoHome();
+  };
+
+  // Arrêter le proctoring à la fin
+  useEffect(() => {
+    return () => {
+      if (proctoringStarted) {
+        endProctoringSession();
+      }
+    };
+  }, [proctoringStarted]);
 
   // Timer
   useEffect(() => {
@@ -38,8 +84,16 @@ export function QuizPage({ concours, onSubmit, onGoHome, theme }: QuizPageProps)
 
   const handleSubmit = useCallback(() => {
     const duration = concours.duration * 60 - timeLeft;
-    onSubmit(answers, duration);
-  }, [answers, timeLeft, concours.duration, onSubmit]);
+    
+    // Récupérer les données de proctoring si activé
+    let proctoringData = null;
+    if (proctoringStarted) {
+      proctoringData = getSessionSummary();
+      endProctoringSession();
+    }
+    
+    onSubmit(answers, duration, proctoringData);
+  }, [answers, timeLeft, concours.duration, onSubmit, proctoringStarted]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -110,6 +164,27 @@ export function QuizPage({ concours, onSubmit, onGoHome, theme }: QuizPageProps)
 
   const colors = getThemeColors();
 
+  // Si le proctoring est activé, afficher le consentement d'abord
+  if (showProctoringConsent) {
+    return (
+      <ProctoringConsent
+        concoursName={concours.name}
+        onAccept={handleProctoringAccept}
+        onDecline={handleProctoringDecline}
+      />
+    );
+  }
+
+  // Calculer le score de confiance
+  const trustScore = Math.max(0, 100 + proctoringPenalty);
+  const getTrustColor = () => {
+    if (trustScore >= 90) return { bg: 'bg-green-500', text: 'text-green-600', light: 'bg-green-50' };
+    if (trustScore >= 70) return { bg: 'bg-yellow-500', text: 'text-yellow-600', light: 'bg-yellow-50' };
+    if (trustScore >= 50) return { bg: 'bg-orange-500', text: 'text-orange-600', light: 'bg-orange-50' };
+    return { bg: 'bg-red-500', text: 'text-red-600', light: 'bg-red-50' };
+  };
+  const trustColors = getTrustColor();
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header fixe avec timer */}
@@ -144,12 +219,33 @@ export function QuizPage({ concours, onSubmit, onGoHome, theme }: QuizPageProps)
               </div>
             </div>
 
-            {/* Timer */}
-            <div className={`flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${getTimeColor()}`}>
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-mono font-bold text-sm sm:text-lg">{formatTime(timeLeft)}</span>
+            {/* Timer + Proctoring */}
+            <div className="flex items-center space-x-2">
+              {/* Timer */}
+              <div className={`flex items-center space-x-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl ${getTimeColor()}`}>
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-mono font-bold text-sm sm:text-lg">{formatTime(timeLeft)}</span>
+              </div>
+
+              {/* Indicateur de surveillance (intégré au header) */}
+              {proctoringStarted && (
+                <button
+                  onClick={() => setShowProctoringDetails(true)}
+                  className={`flex items-center space-x-2 px-3 py-1.5 sm:py-2 rounded-xl ${trustColors.light} border transition-all hover:shadow-md`}
+                  title="Cliquez pour voir les détails de surveillance"
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span className={`font-bold text-sm sm:text-base ${trustColors.text}`}>{trustScore}%</span>
+                  {proctoringPenalty < 0 && (
+                    <span className="text-red-600 font-bold text-sm">{proctoringPenalty}</span>
+                  )}
+                </button>
+              )}
             </div>
 
             {/* Progression */}
@@ -561,6 +657,113 @@ export function QuizPage({ concours, onSubmit, onGoHome, theme }: QuizPageProps)
                 Quitter
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal des détails de proctoring */}
+      {showProctoringDetails && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto animate-fade-in">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className={`w-12 h-12 ${trustColors.bg} rounded-full flex items-center justify-center`}>
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800">Surveillance</h3>
+                  <p className="text-sm text-gray-500">Score de confiance: {trustScore}%</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowProctoringDetails(false)}
+                className="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Score et pénalité */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className={`${trustColors.light} rounded-xl p-4 text-center`}>
+                <p className={`text-3xl font-bold ${trustColors.text}`}>{trustScore}%</p>
+                <p className="text-sm text-gray-600">Confiance</p>
+              </div>
+              <div className="bg-red-50 rounded-xl p-4 text-center">
+                <p className="text-3xl font-bold text-red-600">{proctoringPenalty}</p>
+                <p className="text-sm text-gray-600">Points de pénalité</p>
+              </div>
+            </div>
+
+            {/* Historique des alertes */}
+            <div className="mb-6">
+              <h4 className="font-semibold text-gray-800 mb-3">Historique des alertes</h4>
+              {proctoringAlerts.length === 0 ? (
+                <div className="text-center py-6 bg-green-50 rounded-xl">
+                  <svg className="w-12 h-12 text-green-500 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-green-700 font-medium">Aucune infraction détectée</p>
+                  <p className="text-green-600 text-sm">Continuez ainsi !</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {proctoringAlerts.map((alert, index) => (
+                    <div key={index} className={`p-3 rounded-lg border-l-4 ${
+                      alert.type === 'grave' ? 'bg-red-50 border-red-500' :
+                      alert.type === 'critical' ? 'bg-orange-50 border-orange-500' :
+                      alert.type === 'warning' ? 'bg-yellow-50 border-yellow-500' :
+                      'bg-blue-50 border-blue-500'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-gray-800 text-sm">{alert.message}</span>
+                        <span className="text-red-600 font-bold text-sm">{alert.pointsPenalty} pts</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(alert.timestamp).toLocaleTimeString('fr-FR')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Règles */}
+            <div className="bg-gray-50 rounded-xl p-4">
+              <h4 className="font-semibold text-gray-800 mb-3">Règles de surveillance</h4>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Changement d'onglet</span>
+                  <span className="text-red-600 font-bold">-3 pts</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Tentative d'inspection (F12)</span>
+                  <span className="text-red-600 font-bold">-5 pts</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Copier/Coller</span>
+                  <span className="text-red-600 font-bold">-1 pt</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Clic droit</span>
+                  <span className="text-red-600 font-bold">-1 pt</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Bouton fermer */}
+            <button
+              onClick={() => setShowProctoringDetails(false)}
+              className="w-full mt-6 py-3 bg-gray-800 hover:bg-gray-900 text-white rounded-xl font-medium transition-colors"
+            >
+              Fermer
+            </button>
           </div>
         </div>
       )}

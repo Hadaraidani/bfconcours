@@ -201,7 +201,7 @@ async function migrate() {
     process.exit(1);
   }
 
-  // 4.3 Insérer les liaisons concours-catégories
+  // 4.3 Insérer les liaisons concours-catégories (SANS display_order)
   try {
     const liaisons = [];
     for (const c of data.concours) {
@@ -211,7 +211,7 @@ async function migrate() {
             concours_id: c.id,
             category_id: cat.category_id,
             questions_count: cat.questions_count || 0,
-            display_order: cat.display_order || 1,
+            // display_order supprimé de la table
           });
         }
       }
@@ -226,7 +226,7 @@ async function migrate() {
     process.exit(1);
   }
 
-  // 4.4 Insérer les questions
+  // 4.4 Insérer les questions (AVEC explanation)
   try {
     const questionsData = data.questions.map(q => ({
       concours_id: q.concours_id,
@@ -234,6 +234,7 @@ async function migrate() {
       question_text: q.question_text,
       options: q.options,
       correct_answers: q.correct_answers,
+      explanation: q.explanation || null, // ← Explication détaillée de la réponse
       has_latex: q.has_latex || false,
       image_url: q.image_url || null,
     }));

@@ -15,6 +15,10 @@ import { SITE_CONFIG } from './config/site';
 import { saveQuizAttempt } from './services/activityService';
 import { supabase, isSupabaseConfigured } from './config/supabase';
 import { submitQuiz, submitCustomExam, QuizAnswer } from './services/quizService';
+// Système de codes d'accès
+import AccessCodeModal from './components/AccessCodeModal';
+import AdminCodesPage from './components/AdminCodesPage';
+import { clearStoredAccessCode } from './services/accessCodeService';
 // Fallback local si Supabase n'est pas configuré (uniquement en développement)
 import { concoursData as localConcoursData } from './data/questions';
 
@@ -204,6 +208,15 @@ export function App() {
   // État pour l'ID de correction
   const [correctionId, setCorrectionId] = useState<string | null>(null);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // SYSTÈME DE CODES D'ACCÈS
+  // ═══════════════════════════════════════════════════════════════════
+  const [requireAccessCode] = useState(true); // Mettre à false pour désactiver
+  const [showAccessCodeModal, setShowAccessCodeModal] = useState(false);
+  const [accessCodeValidated, setAccessCodeValidated] = useState(false);
+  const [showAdminPage, setShowAdminPage] = useState(false);
+  const [validatedConcoursId, setValidatedConcoursId] = useState<string | null>(null);
+
   // Charger les données au démarrage
   useEffect(() => {
     async function loadData() {
@@ -265,11 +278,29 @@ export function App() {
     }
   }, [user, userProfile]);
 
+  // Raccourci clavier pour accéder à l'administration des codes (Ctrl+Shift+A)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+        e.preventDefault();
+        setShowAdminPage(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // ═════════════════════════════════════════════════════════════════
   // HANDLERS
   // ═════════════════════════════════════════════════════════════════
 
   const handleStartClick = () => {
+    // Si les codes d'accès sont requis et non validés, afficher le modal
+    if (requireAccessCode && !accessCodeValidated) {
+      setShowAccessCodeModal(true);
+      return;
+    }
+    
     if (user && userProfile) {
       setUserInfo({
         nom: userProfile.full_name.split(' ')[0] || '',
@@ -277,6 +308,35 @@ export function App() {
         telephone: userProfile.phone || '',
       });
       setStep('concoursSelection');
+    } else {
+      setStep('userForm');
+    }
+  };
+
+  // Gestionnaire de validation du code d'accès
+  const handleAccessCodeValidated = (result: { concoursId?: string | null }) => {
+    setAccessCodeValidated(true);
+    setShowAccessCodeModal(false);
+    
+    // Si le code est lié à un concours spécifique, le sélectionner directement
+    if (result.concoursId) {
+      setValidatedConcoursId(result.concoursId);
+      const linkedConcours = concoursData.find(c => c.id === result.concoursId);
+      if (linkedConcours) {
+        // Aller directement au QCM après le formulaire utilisateur
+        setSelectedConcours(linkedConcours);
+      }
+    }
+    
+    // Continuer vers le formulaire ou la sélection de concours
+    if (user && userProfile) {
+      setUserInfo({
+        nom: userProfile.full_name.split(' ')[0] || '',
+        prenom: userProfile.full_name.split(' ').slice(1).join(' ') || '',
+        telephone: userProfile.phone || '',
+      });
+      // Si le concours est pré-sélectionné, aller au formulaire puis au quiz
+      setStep(validatedConcoursId ? 'userForm' : 'concoursSelection');
     } else {
       setStep('userForm');
     }
@@ -326,8 +386,16 @@ export function App() {
   // SOUMISSION DU QUIZ
   // ═════════════════════════════════════════════════════════════════
 
-  const handleQuizSubmit = async (answers: UserAnswer[], duration: number) => {
+  const handleQuizSubmit = async (answers: UserAnswer[], duration: number, proctoringData?: any) => {
     if (!userInfo || !selectedConcours) return;
+    
+    // Calculer la pénalité de proctoring
+    let proctoringPenalty = 0;
+    if (proctoringData) {
+      console.log('📊 Données de proctoring:', proctoringData);
+      proctoringPenalty = proctoringData.totalPointsPenalty || 0;
+      console.log(`🔒 Pénalité de proctoring: ${proctoringPenalty} points`);
+    }
 
     const isCustomExam = selectedConcours.id === 'custom-exam';
     
@@ -343,15 +411,36 @@ export function App() {
         selected_options: a.selectedOptions
       }));
 
+      // Préparer les alertes de proctoring pour Supabase
+      const proctoringAlerts = proctoringData?.penaltySummary?.map((item: any) => ({
+        type: item.category,
+        count: item.count,
+        totalPoints: item.totalPoints
+      })) || [];
+
       const submitResult = await submitQuiz({
         concoursId: selectedConcours.id,
         candidateName: `${userInfo.nom} ${userInfo.prenom}`,
         candidatePhone: userInfo.telephone,
         answers: quizAnswers,
+        proctoringPenalty: proctoringPenalty,
+        proctoringAlerts: proctoringAlerts,
       });
       
       if (submitResult.success && submitResult.submissionId) {
         console.log('✅ Score calculé par Supabase:', submitResult.score, '/', submitResult.totalQuestions);
+
+        // Score de base = score des réponses (calculé par Supabase)
+        const scoreReponses = submitResult.score || 0;
+        
+        // Pénalité de proctoring (valeur négative, ex: -5)
+        // On prend la valeur absolue pour la soustraction
+        const penaliteAbsolue = Math.abs(proctoringPenalty);
+        
+        // Score final = Score des réponses - Pénalité de surveillance
+        const scoreFinal = Math.max(0, scoreReponses - penaliteAbsolue);
+        
+        console.log(`📊 Score réponses: ${scoreReponses}, Pénalité: ${penaliteAbsolue}, Score final: ${scoreFinal}`);
 
         // Construire le résultat (sans les détails de correction - ils seront chargés via le lien)
         const result: QuizResult = {
@@ -364,7 +453,8 @@ export function App() {
             isCorrect: false,
             points: 0,
           })),
-          score: submitResult.score || 0,
+          score: scoreReponses, // Score des réponses (avant pénalités)
+          scoreFinal: scoreFinal, // Score final (après pénalités de surveillance)
           totalQuestions: submitResult.totalQuestions || selectedConcours.questions.length,
           bonnesReponses: submitResult.correctCount || 0,
           mauvaisesReponses: submitResult.wrongCount || 0,
@@ -374,6 +464,7 @@ export function App() {
           isCustomExam: false,
           questions: selectedConcours.questions,
           submissionId: submitResult.submissionId,
+          proctoringData: proctoringData, // Ajouter les données de proctoring
         };
 
         // Enregistrer la tentative dans l'historique si connecté
@@ -560,6 +651,10 @@ export function App() {
     setSelectedConcours(null);
     setQuizResult(null);
     setCorrectionId(null);
+    // Réinitialiser le code d'accès
+    setAccessCodeValidated(false);
+    setValidatedConcoursId(null);
+    clearStoredAccessCode();
     window.history.replaceState({}, document.title, window.location.pathname);
   };
 
@@ -586,9 +681,9 @@ export function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-yellow-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto border-green-600"></div>
           <p className="mt-4 text-gray-600">Chargement des données...</p>
-          <p className="text-sm text-gray-400 mt-2">
+          <p className="text-sm mt-2 text-gray-400">
             {dataLoading ? 'Connexion à la base de données...' : 'Vérification de l\'authentification...'}
           </p>
         </div>
@@ -656,6 +751,19 @@ export function App() {
         <HeroBackground />
         {ProfileModal}
         
+        {/* Modal de code d'accès */}
+        {showAccessCodeModal && (
+          <AccessCodeModal
+            onValidated={handleAccessCodeValidated}
+            onCancel={() => setShowAccessCodeModal(false)}
+          />
+        )}
+        
+        {/* Page d'administration des codes (Ctrl+Shift+A) */}
+        {showAdminPage && (
+          <AdminCodesPage onClose={() => setShowAdminPage(false)} />
+        )}
+        
         <Header 
           theme={theme} 
           onThemeChange={setTheme}
@@ -672,7 +780,7 @@ export function App() {
             {/* Indicateur de source des données */}
             {dataSource === 'supabase' && (
               <div className="flex justify-center mb-4">
-                <div className="inline-flex items-center space-x-2 bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
                   <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                   <span>Données en ligne - Score sécurisé</span>
                 </div>
@@ -681,7 +789,7 @@ export function App() {
             
             {dataSource === 'local' && (
               <div className="flex justify-center mb-4">
-                <div className="inline-flex items-center space-x-2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">
                   <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
                   <span>Mode local (développement)</span>
                 </div>
@@ -701,9 +809,9 @@ export function App() {
 
             {/* Message de bienvenue si connecté */}
             {user && userProfile && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-8 max-w-2xl mx-auto">
+              <div className="rounded-xl p-4 mb-8 max-w-2xl mx-auto border bg-green-50 border-green-200">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-green-500">
                     {userProfile.full_name?.charAt(0).toUpperCase()}
                   </div>
                   <div>
@@ -720,19 +828,19 @@ export function App() {
 
             {/* Hero Section */}
             <div className="text-center mb-10 sm:mb-16">
-              <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-gray-100 mb-6">
+              <div className="inline-flex items-center space-x-2 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border mb-6 bg-white/80 border-gray-100">
                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                 <span className="text-sm font-medium text-gray-600">Plateforme officielle de préparation</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-800 mb-4 sm:mb-6">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6 text-gray-800">
                 Préparez vos
                 <span className="block text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-green-600">
                   Concours Directs
                 </span>
               </h1>
 
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 max-w-2xl mx-auto mb-8">
+              <p className="text-base sm:text-lg md:text-xl max-w-2xl mx-auto mb-8 text-gray-600">
                 Entraînez-vous avec des QCM de qualité et maximisez vos chances de réussite aux concours du Burkina Faso.
               </p>
 
@@ -968,7 +1076,17 @@ export function App() {
   }
 
   if (step === 'quiz' && selectedConcours) {
-    return <QuizPage concours={selectedConcours} onSubmit={handleQuizSubmit} onGoHome={handleRestart} theme={theme} />;
+    // Activer le proctoring uniquement pour les examens officiels (pas les examens personnalisés)
+    const enableProctoring = selectedConcours.id !== 'custom-exam';
+    return (
+      <QuizPage 
+        concours={selectedConcours} 
+        onSubmit={handleQuizSubmit} 
+        onGoHome={handleRestart} 
+        theme={theme}
+        enableProctoring={enableProctoring}
+      />
+    );
   }
 
   if (step === 'result' && quizResult && selectedConcours) {

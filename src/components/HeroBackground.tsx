@@ -2,7 +2,7 @@
 export function HeroBackground() {
   return (
     <div className="fixed inset-0 -z-10 overflow-hidden">
-      {/* Fond dégradé principal - couleurs douces évoquant l'éducation */}
+      {/* Fond dégradé principal */}
       <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 via-white to-amber-50" />
       
       {/* Motifs géométriques subtils - livres, crayons stylisés */}
@@ -42,9 +42,18 @@ export function HeroBackground() {
       </div>
       
       {/* Cercles décoratifs flous */}
-      <div className="absolute top-10 left-10 w-64 h-64 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDuration: '8s' }} />
-      <div className="absolute top-1/3 right-10 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{ animationDuration: '10s', animationDelay: '2s' }} />
-      <div className="absolute bottom-20 left-1/4 w-80 h-80 bg-emerald-100 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse" style={{ animationDuration: '12s', animationDelay: '4s' }} />
+      <div 
+        className="absolute top-10 left-10 w-64 h-64 bg-emerald-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" 
+        style={{ animationDuration: '8s' }} 
+      />
+      <div 
+        className="absolute top-1/3 right-10 w-72 h-72 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" 
+        style={{ animationDuration: '10s', animationDelay: '2s' }} 
+      />
+      <div 
+        className="absolute bottom-20 left-1/4 w-80 h-80 bg-emerald-100 rounded-full mix-blend-multiply filter blur-3xl opacity-15 animate-pulse" 
+        style={{ animationDuration: '12s', animationDelay: '4s' }} 
+      />
       
       {/* Lignes décoratives subtiles */}
       <div className="absolute inset-0 opacity-[0.02]">

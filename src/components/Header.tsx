@@ -86,13 +86,13 @@ export function Header({
 
               {/* Actions */}
               <div className="flex items-center space-x-2 sm:space-x-3">
-                {/* Sélecteur de thème */}
+                {/* Sélecteur de thème de couleur */}
                 {showThemeSelector && onThemeChange && (
                   <div className="relative hidden sm:block">
                     <select
                       value={theme}
                       onChange={(e) => onThemeChange(e.target.value as Theme)}
-                      className="appearance-none bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 pr-7 sm:pr-8 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer"
+                      className="appearance-none bg-white/10 border-white/20 backdrop-blur-sm text-white text-xs sm:text-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 pr-7 sm:pr-8 focus:outline-none focus:ring-2 focus:ring-white/30 cursor-pointer border"
                     >
                       {Object.entries(THEME_CONFIG).map(([key, config]) => (
                         <option key={key} value={key} className="text-gray-900">
@@ -109,7 +109,7 @@ export function Header({
                 )}
 
                 {/* Badge sécurisé */}
-                <div className="hidden md:flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-white/20">
+                <div className="hidden md:flex items-center space-x-1 sm:space-x-2 bg-white/10 border-white/20 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <span className="text-[10px] sm:text-xs font-medium">
                     Sécurisé SSL
@@ -122,7 +122,7 @@ export function Header({
                     {/* Profil utilisateur */}
                     <button
                       onClick={onProfileClick}
-                      className="flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-white/20 hover:bg-white/20 transition-colors"
+                      className="flex items-center space-x-1 sm:space-x-2 bg-white/10 border-white/20 hover:bg-white/20 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border transition-colors"
                     >
                       <div className="w-6 h-6 bg-white/30 rounded-full flex items-center justify-center">
                         <User className="w-4 h-4" />
@@ -144,7 +144,7 @@ export function Header({
                 ) : (
                   <button
                     onClick={onLoginClick}
-                    className="flex items-center space-x-1 sm:space-x-2 bg-white/10 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border border-white/20 hover:bg-white/20 transition-colors"
+                    className="flex items-center space-x-1 sm:space-x-2 bg-white/10 border-white/20 hover:bg-white/20 backdrop-blur-sm rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 border transition-colors"
                   >
                     <LogIn className="w-4 h-4" />
                     <span className="text-xs font-medium">Connexion</span>

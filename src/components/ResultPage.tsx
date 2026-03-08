@@ -152,17 +152,42 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
         
         console.log('🔗 URL de correction:', correctionUrl);
 
-        // 2. Envoyer l'email via EmailJS
+        // 2. Calculer les données de proctoring
+        // totalPointsPenalty est NÉGATIF (ex: -5), on prend la valeur absolue pour l'affichage
+        const proctoringPenaltyRaw = result.proctoringData?.totalPointsPenalty || 0; // ex: -5
+        const proctoringPenaltyAbs = Math.abs(proctoringPenaltyRaw); // ex: 5 (pour l'affichage)
+        
+        // Si scoreFinal existe déjà dans result (calculé par Supabase), l'utiliser
+        // Sinon calculer: score - |pénalité|
+        const scoreFinal = result.scoreFinal ?? Math.max(0, result.score - proctoringPenaltyAbs);
+        
+        // Générer le HTML des détails d'infractions
+        let proctoringDetailsHtml = '';
+        if (result.proctoringData?.penaltySummary && result.proctoringData.penaltySummary.length > 0) {
+          proctoringDetailsHtml = result.proctoringData.penaltySummary.map((item) => 
+            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
+              <span style="color: #374151;">${item.count}x ${item.category}</span>
+              <span style="color: #dc2626; font-weight: bold;">${item.totalPoints} pts</span>
+            </div>`
+          ).join('');
+        } else {
+          proctoringDetailsHtml = '<p style="color: #16a34a; text-align: center; padding: 10px 0;">Aucune infraction détectée</p>';
+        }
+        
+        // 3. Envoyer l'email via EmailJS
         const templateParams = {
           to_email: EMAILJS_CONFIG.adminEmail,
           candidate_name: `${result.user.prenom} ${result.user.nom}`,
           candidate_phone: result.user.telephone,
           concours_name: result.concours,
           score: result.score,
+          score_final: scoreFinal,
           total_questions: result.totalQuestions,
           correct_count: result.bonnesReponses,
           wrong_count: result.mauvaisesReponses,
           unanswered_count: result.sansReponse,
+          proctoring_penalty: proctoringPenaltyAbs,
+          proctoring_details: proctoringDetailsHtml,
           submission_date: new Date().toLocaleString('fr-FR', {
             day: '2-digit',
             month: 'long',

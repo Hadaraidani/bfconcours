@@ -1,15 +1,3 @@
-// ============================================================================
-// FICHIER DE MIGRATION - questions-migration.ts
-// Généré automatiquement le 04/03/2026 à 03:19:39
-// 
-// Ce fichier contient toutes les données prêtes à être migrées vers Supabase.
-// Commande: npm run migrate
-// ============================================================================
-
-// ============================================================================
-// 1. CATÉGORIES (22 catégories)
-// ============================================================================
-
 export const CATEGORIES = [
   { id: 'francais', name: 'Français', name_short: 'Fra' },
   { id: 'droit_constitutionnel', name: 'Droit Constitutionnel', name_short: 'D.Con' },

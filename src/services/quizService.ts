@@ -24,6 +24,8 @@ export interface SubmitQuizParams {
   candidateName: string;
   candidatePhone?: string;
   answers: QuizAnswer[];
+  proctoringPenalty?: number; // Valeur négative (ex: -5)
+  proctoringAlerts?: { type: string; count: number; totalPoints: number }[]; // Tableau des alertes pour le comptage
 }
 
 export interface SubmitQuizResult {
@@ -49,6 +51,7 @@ export interface CorrectionQuestion {
   points: number;
   has_latex?: boolean;
   image_url?: string;
+  explanation?: string; // ← Explication détaillée de la réponse
 }
 
 export interface CorrectionResult {
@@ -60,11 +63,14 @@ export interface CorrectionResult {
   concoursId?: string;
   concoursName?: string;
   score?: number;
+  scoreFinal?: number;
   totalQuestions?: number;
   correctCount?: number;
   wrongCount?: number;
   unansweredCount?: number;
   percentage?: number;
+  proctoringPenalty?: number;
+  proctoringAlerts?: { type: string; count: number; totalPoints: number }[];
   questions?: CorrectionQuestion[];
   createdAt?: string;
 }
@@ -102,15 +108,26 @@ export async function submitQuiz(params: SubmitQuizParams): Promise<SubmitQuizRe
   }
 
   try {
+    // Calculer le nombre total d'alertes de proctoring
+    let alertsCount = 0;
+    if (params.proctoringAlerts && Array.isArray(params.proctoringAlerts)) {
+      alertsCount = params.proctoringAlerts.reduce((sum, alert) => sum + (alert.count || 0), 0);
+    }
+
     // Préparer les paramètres pour la fonction RPC
+    // IMPORTANT: p_proctoring_alerts doit être un INTEGER, pas un tableau
     const rpcParams = {
       p_concours_id: params.concoursId,
       p_candidate_name: params.candidateName,
       p_candidate_phone: params.candidatePhone || '',
-      p_answers: params.answers
+      p_answers: params.answers,
+      p_proctoring_penalty: Math.abs(params.proctoringPenalty || 0), // Valeur positive
+      p_proctoring_alerts: alertsCount // Nombre d'alertes (INTEGER)
     };
 
     console.log('📤 Appel RPC submit_quiz avec:', JSON.stringify(rpcParams, null, 2));
+    console.log('   Pénalité proctoring:', rpcParams.p_proctoring_penalty);
+    console.log('   Nombre d\'alertes:', alertsCount);
 
     const { data, error } = await supabase.rpc('submit_quiz', rpcParams);
 
@@ -143,8 +160,10 @@ export async function submitQuiz(params: SubmitQuizParams): Promise<SubmitQuizRe
     console.log('══════════════════════════════════════════');
     console.log('✅ SCORE CALCULÉ PAR SUPABASE');
     console.log('══════════════════════════════════════════');
+    console.log('   Données brutes:', JSON.stringify(data, null, 2));
     console.log('   Submission ID:', data.submission_id);
     console.log('   Score:', data.score, '/', data.total);
+    console.log('   Score Final:', data.score_final);
     console.log('   Correctes:', data.correct_count);
     console.log('   Incorrectes:', data.wrong_count);
     console.log('   Sans réponse:', data.unanswered_count);
@@ -259,11 +278,14 @@ export async function getCorrection(submissionId: string): Promise<CorrectionRes
       concoursId: rpcData.concours_id,
       concoursName: rpcData.concours_name,
       score: rpcData.score,
+      scoreFinal: rpcData.score_final,
       totalQuestions: rpcData.total,
       correctCount: rpcData.correct_count,
       wrongCount: rpcData.wrong_count,
       unansweredCount: rpcData.unanswered_count,
       percentage: rpcData.percentage,
+      proctoringPenalty: rpcData.proctoring_penalty || 0,
+      proctoringAlerts: rpcData.proctoring_alerts || [],
       questions,
       createdAt: rpcData.created_at
     };
@@ -317,7 +339,8 @@ function normalizeQuestion(q: any): CorrectionQuestion {
     is_correct: isCorrect,
     points,
     has_latex: Boolean(q.has_latex || q.hasLatex),
-    image_url: q.image_url || q.imageUrl || q.image || undefined
+    image_url: q.image_url || q.imageUrl || q.image || undefined,
+    explanation: q.explanation || undefined // ← Explication détaillée
   };
 }
 
