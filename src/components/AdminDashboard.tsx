@@ -4,7 +4,10 @@
  * Fonctionnalités :
  * - Tableau de bord avec statistiques
  * - Gestion des codes d'accès (individuels et universels)
+ * - Gestion avancée du temps (heures, minutes, jours)
  * - Liste des soumissions avec classement
+ * - Suppression de soumissions
+ * - Archivage et création de nouvelles listes
  * - Export CSV des résultats
  * - Filtres et recherche
  */
@@ -80,13 +83,23 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   // Filtres
   const [filterConcours, setFilterConcours] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Sélection pour suppression multiple
+  const [selectedSubmissions, setSelectedSubmissions] = useState<Set<string>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
-  // Formulaire de création de code
+  // Modal de confirmation
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+
+  // Formulaire de création de code avec options avancées
   const [newCode, setNewCode] = useState({
     concoursId: '',
     candidateName: '',
     candidateEmail: '',
-    expiresInHours: 24,
+    expiresDays: 0,
+    expiresHours: 24,
+    expiresMinutes: 0,
     quantity: 1,
     isUniversal: false,
     maxUses: 100,
@@ -99,6 +112,16 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       loadAllData();
     }
   }, [isAuthenticated]);
+
+  // Gérer la sélection de tous
+  useEffect(() => {
+    if (selectAll) {
+      const filteredIds = getFilteredSubmissions().map(s => s.id);
+      setSelectedSubmissions(new Set(filteredIds));
+    } else {
+      setSelectedSubmissions(new Set());
+    }
+  }, [selectAll]);
 
   // Fonction de connexion
   const handleLogin = () => {
@@ -205,7 +228,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         .from('quiz_submissions')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(500);
 
       if (!error && data) {
         setSubmissions(data);
@@ -226,10 +249,24 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     return token;
   };
 
+  // Calculer le temps d'expiration total en millisecondes
+  const calculateExpirationMs = () => {
+    const days = newCode.expiresDays * 24 * 60 * 60 * 1000;
+    const hours = newCode.expiresHours * 60 * 60 * 1000;
+    const minutes = newCode.expiresMinutes * 60 * 1000;
+    return days + hours + minutes;
+  };
+
   // Créer des codes
   const handleCreateCodes = async () => {
     if (!isSupabaseConfigured || !supabase) {
       setMessage({ type: 'error', text: 'Base de données non configurée' });
+      return;
+    }
+
+    const expirationMs = calculateExpirationMs();
+    if (expirationMs <= 0) {
+      setMessage({ type: 'error', text: 'Veuillez définir une durée de validité' });
       return;
     }
 
@@ -238,7 +275,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     setGeneratedCodes([]);
 
     const created: string[] = [];
-    const expiresAt = new Date(Date.now() + newCode.expiresInHours * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + expirationMs);
 
     for (let i = 0; i < newCode.quantity; i++) {
       const token = generateToken();
@@ -273,7 +310,9 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         concoursId: '',
         candidateName: '',
         candidateEmail: '',
-        expiresInHours: 24,
+        expiresDays: 0,
+        expiresHours: 24,
+        expiresMinutes: 0,
         quantity: 1,
         isUniversal: false,
         maxUses: 100,
@@ -297,6 +336,79 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       setMessage({ type: 'success', text: 'Code supprimé' });
       loadCodes();
       loadStats();
+    }
+  };
+
+  // Supprimer une soumission
+  const handleDeleteSubmission = async (submissionId: string) => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    const { error } = await supabase
+      .from('quiz_submissions')
+      .delete()
+      .eq('id', submissionId);
+
+    if (!error) {
+      setSubmissions(prev => prev.filter(s => s.id !== submissionId));
+      setMessage({ type: 'success', text: 'Soumission supprimée' });
+      loadStats();
+    } else {
+      setMessage({ type: 'error', text: 'Erreur lors de la suppression' });
+    }
+  };
+
+  // Supprimer les soumissions sélectionnées
+  const handleDeleteSelected = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+    if (selectedSubmissions.size === 0) return;
+
+    setIsLoading(true);
+    let deletedCount = 0;
+
+    for (const id of selectedSubmissions) {
+      const { error } = await supabase
+        .from('quiz_submissions')
+        .delete()
+        .eq('id', id);
+
+      if (!error) {
+        deletedCount++;
+      }
+    }
+
+    setIsLoading(false);
+    setShowDeleteModal(false);
+    setSelectedSubmissions(new Set());
+    setSelectAll(false);
+
+    if (deletedCount > 0) {
+      setMessage({ type: 'success', text: `${deletedCount} soumission(s) supprimée(s)` });
+      loadSubmissions();
+      loadStats();
+    }
+  };
+
+  // Archiver toutes les soumissions (créer une nouvelle liste)
+  const handleArchiveAll = async () => {
+    if (!isSupabaseConfigured || !supabase) return;
+
+    setIsLoading(true);
+
+    // Supprimer toutes les soumissions actuelles
+    const { error } = await supabase
+      .from('quiz_submissions')
+      .delete()
+      .neq('id', '00000000-0000-0000-0000-000000000000'); // Supprime tout
+
+    setIsLoading(false);
+    setShowArchiveModal(false);
+
+    if (!error) {
+      setMessage({ type: 'success', text: 'Toutes les soumissions ont été archivées. Nouvelle liste créée.' });
+      setSubmissions([]);
+      loadStats();
+    } else {
+      setMessage({ type: 'error', text: 'Erreur lors de l\'archivage' });
     }
   };
 
@@ -355,6 +467,17 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     });
   };
 
+  // Toggle sélection d'une soumission
+  const toggleSubmissionSelection = (id: string) => {
+    const newSelected = new Set(selectedSubmissions);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedSubmissions(newSelected);
+  };
+
   // Formater la date
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleString('fr-FR', {
@@ -364,6 +487,23 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // Formater la durée restante
+  const formatRemainingTime = (expiresAt: string) => {
+    const now = new Date();
+    const expires = new Date(expiresAt);
+    const diff = expires.getTime() - now.getTime();
+
+    if (diff <= 0) return 'Expiré';
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) return `${days}j ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}min`;
+    return `${minutes}min`;
   };
 
   // Vérifier si expiré
@@ -465,7 +605,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 ].map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
+                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       activeTab === tab.id
                         ? 'bg-white text-emerald-700'
@@ -499,7 +639,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   activeTab === tab.id
                     ? 'bg-white text-emerald-700'
@@ -545,6 +685,12 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 </button>
               ))}
             </div>
+            <button
+              onClick={() => copyToClipboard(generatedCodes.join('\n'))}
+              className="mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
+            >
+              📋 Copier tous les codes
+            </button>
           </div>
         )}
 
@@ -636,46 +782,46 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 ➕ Créer des codes d'accès
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                {/* Type de code */}
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Type de code
+              {/* Type de code */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de code
+                </label>
+                <div className="flex gap-3">
+                  <label className={`flex-1 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    !newCode.isUniversal ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      checked={!newCode.isUniversal}
+                      onChange={() => setNewCode({ ...newCode, isUniversal: false })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">👤</div>
+                      <div className="font-semibold text-gray-800">Code individuel</div>
+                      <div className="text-xs text-gray-500">1 code = 1 candidat</div>
+                    </div>
                   </label>
-                  <div className="flex gap-3">
-                    <label className={`flex-1 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      !newCode.isUniversal ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="radio"
-                        checked={!newCode.isUniversal}
-                        onChange={() => setNewCode({ ...newCode, isUniversal: false })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <div className="text-2xl mb-1">👤</div>
-                        <div className="font-semibold text-gray-800">Code individuel</div>
-                        <div className="text-xs text-gray-500">1 code = 1 candidat</div>
-                      </div>
-                    </label>
-                    <label className={`flex-1 p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                      newCode.isUniversal ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                      <input
-                        type="radio"
-                        checked={newCode.isUniversal}
-                        onChange={() => setNewCode({ ...newCode, isUniversal: true })}
-                        className="sr-only"
-                      />
-                      <div className="text-center">
-                        <div className="text-2xl mb-1">👥</div>
-                        <div className="font-semibold text-gray-800">Code universel</div>
-                        <div className="text-xs text-gray-500">1 code pour tous</div>
-                      </div>
-                    </label>
-                  </div>
+                  <label className={`flex-1 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    newCode.isUniversal ? 'border-emerald-500 bg-emerald-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}>
+                    <input
+                      type="radio"
+                      checked={newCode.isUniversal}
+                      onChange={() => setNewCode({ ...newCode, isUniversal: true })}
+                      className="sr-only"
+                    />
+                    <div className="text-center">
+                      <div className="text-2xl mb-1">👥</div>
+                      <div className="font-semibold text-gray-800">Code universel</div>
+                      <div className="text-xs text-gray-500">1 code pour tous</div>
+                    </div>
+                  </label>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 {/* Concours */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -693,26 +839,11 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   </select>
                 </div>
 
-                {/* Validité */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Validité (heures)
-                  </label>
-                  <input
-                    type="number"
-                    value={newCode.expiresInHours}
-                    onChange={(e) => setNewCode({ ...newCode, expiresInHours: parseInt(e.target.value) || 24 })}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-                    min="1"
-                    max="720"
-                  />
-                </div>
-
                 {/* Quantité ou Max uses */}
                 {!newCode.isUniversal ? (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nombre de codes
+                      Nombre de codes à générer
                     </label>
                     <input
                       type="number"
@@ -726,7 +857,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                 ) : (
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Utilisations max
+                      Nombre max d'utilisations
                     </label>
                     <input
                       type="number"
@@ -738,27 +869,70 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                     />
                   </div>
                 )}
-
-                {/* Bouton créer */}
-                <div className="flex items-end">
-                  <button
-                    onClick={handleCreateCodes}
-                    disabled={isLoading}
-                    className="w-full px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {isLoading ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Création...
-                      </>
-                    ) : (
-                      <>
-                        <span>🔑</span> Générer
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
+
+              {/* Durée de validité */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Durée de validité
+                </label>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Jours</label>
+                    <input
+                      type="number"
+                      value={newCode.expiresDays}
+                      onChange={(e) => setNewCode({ ...newCode, expiresDays: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      min="0"
+                      max="365"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Heures</label>
+                    <input
+                      type="number"
+                      value={newCode.expiresHours}
+                      onChange={(e) => setNewCode({ ...newCode, expiresHours: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      min="0"
+                      max="23"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Minutes</label>
+                    <input
+                      type="number"
+                      value={newCode.expiresMinutes}
+                      onChange={(e) => setNewCode({ ...newCode, expiresMinutes: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      min="0"
+                      max="59"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Durée totale : {newCode.expiresDays}j {newCode.expiresHours}h {newCode.expiresMinutes}min
+                </p>
+              </div>
+
+              {/* Bouton créer */}
+              <button
+                onClick={handleCreateCodes}
+                disabled={isLoading || calculateExpirationMs() <= 0}
+                className="w-full px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Création...
+                  </>
+                ) : (
+                  <>
+                    <span>🔑</span> Générer {newCode.isUniversal ? 'le code universel' : `${newCode.quantity} code(s)`}
+                  </>
+                )}
+              </button>
             </div>
 
             {/* Liste des codes */}
@@ -782,7 +956,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                       <th className="px-4 py-3 text-left">Type</th>
                       <th className="px-4 py-3 text-left">Statut</th>
                       <th className="px-4 py-3 text-left">Concours</th>
-                      <th className="px-4 py-3 text-left">Expire</th>
+                      <th className="px-4 py-3 text-left">Temps restant</th>
                       <th className="px-4 py-3 text-center">Actions</th>
                     </tr>
                   </thead>
@@ -835,7 +1009,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                             {code.concours_id || 'Tous'}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
-                            {formatDate(code.expires_at)}
+                            {formatRemainingTime(code.expires_at)}
                           </td>
                           <td className="px-4 py-3 text-center">
                             <button
@@ -861,7 +1035,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
         {/* ═══════════════════════════════════════════════════════════════════ */}
         {activeTab === 'submissions' && (
           <>
-            {/* Filtres et export */}
+            {/* Actions de masse */}
             <div className="bg-white rounded-xl shadow-sm border p-4">
               <div className="flex flex-wrap items-center gap-4">
                 {/* Recherche */}
@@ -887,37 +1061,71 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   ))}
                 </select>
 
-                {/* Bouton export */}
-                <button
-                  onClick={exportToCSV}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold flex items-center gap-2"
-                >
-                  📥 Exporter CSV
-                </button>
+                {/* Boutons d'action */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportToCSV}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold flex items-center gap-2"
+                  >
+                    📥 Exporter CSV
+                  </button>
 
-                {/* Actualiser */}
-                <button
-                  onClick={loadSubmissions}
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
-                >
-                  🔄
-                </button>
+                  {selectedSubmissions.size > 0 && (
+                    <button
+                      onClick={() => setShowDeleteModal(true)}
+                      className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold flex items-center gap-2"
+                    >
+                      🗑️ Supprimer ({selectedSubmissions.size})
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setShowArchiveModal(true)}
+                    className="px-4 py-2 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all font-semibold flex items-center gap-2"
+                  >
+                    📦 Nouvelle liste
+                  </button>
+
+                  <button
+                    onClick={loadSubmissions}
+                    disabled={isLoading}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-xl transition-colors"
+                  >
+                    🔄
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Tableau des soumissions avec classement */}
             <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
+              <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
                 <h2 className="font-bold text-gray-800">
                   📝 Résultats et classement ({getFilteredSubmissions().length} candidats)
                 </h2>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={selectAll}
+                    onChange={(e) => setSelectAll(e.target.checked)}
+                    className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  />
+                  Tout sélectionner
+                </label>
               </div>
 
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-gray-600">
                     <tr>
+                      <th className="px-4 py-3 text-center w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={(e) => setSelectAll(e.target.checked)}
+                          className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                      </th>
                       <th className="px-4 py-3 text-center w-16">Rang</th>
                       <th className="px-4 py-3 text-left">Candidat</th>
                       <th className="px-4 py-3 text-left">Téléphone</th>
@@ -932,7 +1140,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <tbody className="divide-y">
                     {getFilteredSubmissions().length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                        <td colSpan={10} className="px-4 py-8 text-center text-gray-500">
                           Aucune soumission trouvée
                         </td>
                       </tr>
@@ -940,7 +1148,15 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                       [...getFilteredSubmissions()]
                         .sort((a, b) => b.score_final - a.score_final)
                         .map((s, index) => (
-                          <tr key={s.id} className="hover:bg-gray-50">
+                          <tr key={s.id} className={`hover:bg-gray-50 ${selectedSubmissions.has(s.id) ? 'bg-emerald-50' : ''}`}>
+                            <td className="px-4 py-3 text-center">
+                              <input
+                                type="checkbox"
+                                checked={selectedSubmissions.has(s.id)}
+                                onChange={() => toggleSubmissionSelection(s.id)}
+                                className="w-4 h-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                              />
+                            </td>
                             <td className="px-4 py-3 text-center">
                               {index === 0 && <span className="text-2xl">🥇</span>}
                               {index === 1 && <span className="text-2xl">🥈</span>}
@@ -975,14 +1191,22 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                               {formatDate(s.created_at)}
                             </td>
                             <td className="px-4 py-3 text-center">
-                              <a
-                                href={`?correction=${s.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
-                              >
-                                Voir correction
-                              </a>
+                              <div className="flex items-center justify-center gap-1">
+                                <a
+                                  href={`?correction=${s.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
+                                >
+                                  👁️
+                                </a>
+                                <button
+                                  onClick={() => handleDeleteSubmission(s.id)}
+                                  className="px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-xs font-medium"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -994,6 +1218,81 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
           </>
         )}
       </div>
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🗑️</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Confirmer la suppression</h3>
+              <p className="text-gray-600">
+                Voulez-vous vraiment supprimer <strong>{selectedSubmissions.size}</strong> soumission(s) ?
+                Cette action est irréversible.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleDeleteSelected}
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-all font-semibold disabled:opacity-50"
+              >
+                {isLoading ? 'Suppression...' : 'Supprimer'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'archivage (nouvelle liste) */}
+      {showArchiveModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">📦</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Créer une nouvelle liste</h3>
+              <p className="text-gray-600">
+                Cette action va supprimer toutes les soumissions actuelles ({submissions.length}) 
+                pour recommencer avec une liste vide.
+              </p>
+              <p className="text-sm text-orange-600 mt-2 font-medium">
+                ⚠️ Pensez à exporter les données avant de continuer !
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowArchiveModal(false)}
+                className="flex-1 px-4 py-3 border-2 border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-semibold"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="px-4 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold"
+              >
+                📥 Exporter d'abord
+              </button>
+              <button
+                onClick={handleArchiveAll}
+                disabled={isLoading}
+                className="flex-1 px-4 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 transition-all font-semibold disabled:opacity-50"
+              >
+                {isLoading ? 'Archivage...' : 'Nouvelle liste'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

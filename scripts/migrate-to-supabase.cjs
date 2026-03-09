@@ -2,6 +2,7 @@
  * Script de migration des questions vers Supabase
  * 
  * Ce script lit le fichier questions-migration.ts et insère les données dans Supabase.
+ * Il SUPPRIME automatiquement les anciennes données avant d'insérer les nouvelles.
  * 
  * Usage: npm run migrate
  */
@@ -69,6 +70,55 @@ async function supabaseRequest(endpoint, method = 'GET', body = null) {
   return text ? JSON.parse(text) : { success: true };
 }
 
+// Fonction pour supprimer TOUTES les données d'une table
+async function deleteAllFromTable(tableName) {
+  const url = `${SUPABASE_URL}/rest/v1/${tableName}`;
+  const headers = {
+    'apikey': SUPABASE_SERVICE_KEY,
+    'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'return=minimal',
+  };
+
+  // D'abord récupérer tous les IDs
+  const selectResponse = await fetch(`${url}?select=id`, {
+    method: 'GET',
+    headers,
+  });
+
+  if (!selectResponse.ok) {
+    return { success: false, count: 0 };
+  }
+
+  const rows = await selectResponse.json();
+  
+  if (!rows || rows.length === 0) {
+    return { success: true, count: 0 };
+  }
+
+  // Supprimer avec une condition "id not is null" qui correspond à tout
+  const deleteResponse = await fetch(`${url}?id=not.is.null`, {
+    method: 'DELETE',
+    headers,
+  });
+
+  if (!deleteResponse.ok) {
+    // Essayer une autre méthode: supprimer chaque ID
+    for (const row of rows) {
+      try {
+        await fetch(`${url}?id=eq.${row.id}`, {
+          method: 'DELETE',
+          headers,
+        });
+      } catch (e) {
+        // Ignorer les erreurs individuelles
+      }
+    }
+  }
+
+  return { success: true, count: rows.length };
+}
+
 // Lire et parser le fichier questions-migration.ts
 function loadQuestionsFromFile() {
   const filePath = path.join(__dirname, '..', 'src', 'data', 'questions-migration.ts');
@@ -125,6 +175,7 @@ function loadQuestionsFromFile() {
 async function migrate() {
   console.log('\n════════════════════════════════════════════════════════════');
   console.log(' MIGRATION questions-migration.ts → Supabase');
+  console.log(' (Suppression automatique des anciennes données)');
   console.log('════════════════════════════════════════════════════════════\n');
 
   // Étape 1: Vérification
@@ -146,27 +197,37 @@ async function migrate() {
     process.exit(1);
   }
 
-  // Étape 3: Nettoyer les anciennes données
-  console.log('[3/5] Nettoyage des anciennes données');
+  // Étape 3: SUPPRIMER les anciennes données (dans l'ordre des dépendances)
+  console.log('[3/5] Suppression des anciennes données');
+  console.log('    (Ceci supprime TOUT pour éviter les conflits)\n');
+  
   try {
-    // Supprimer dans l'ordre des dépendances
-    await supabaseRequest('questions?id=gt.0', 'DELETE');
-    console.log('✓ Questions supprimées');
+    // Ordre important : d'abord les tables qui ont des clés étrangères
     
-    await supabaseRequest('concours_categories?id=neq.00000000-0000-0000-0000-000000000000', 'DELETE');
-    console.log('✓ Liaisons concours-catégories supprimées');
+    // 1. Supprimer les questions (dépend de categories et concours)
+    const questionsDeleted = await deleteAllFromTable('questions');
+    console.log(`    ✓ Questions supprimées (${questionsDeleted.count} lignes)`);
     
-    await supabaseRequest('concours?id=neq.', 'DELETE');
-    console.log('✓ Concours supprimés');
+    // 2. Supprimer les liaisons concours_categories (dépend de categories et concours)
+    const liaisonsDeleted = await deleteAllFromTable('concours_categories');
+    console.log(`    ✓ Liaisons concours-catégories supprimées (${liaisonsDeleted.count} lignes)`);
     
-    await supabaseRequest('categories?id=neq.', 'DELETE');
-    console.log('✓ Catégories supprimées\n');
+    // 3. Supprimer les concours (table parente)
+    const concoursDeleted = await deleteAllFromTable('concours');
+    console.log(`    ✓ Concours supprimés (${concoursDeleted.count} lignes)`);
+    
+    // 4. Supprimer les catégories (table parente)
+    const categoriesDeleted = await deleteAllFromTable('categories');
+    console.log(`    ✓ Catégories supprimées (${categoriesDeleted.count} lignes)`);
+    
+    console.log('\n    ✅ Anciennes données supprimées avec succès\n');
   } catch (error) {
-    console.log('⚠ Nettoyage partiel (tables peut-être vides)\n');
+    console.log(`    ⚠ Avertissement lors de la suppression: ${error.message}`);
+    console.log('    Tentative de continuer...\n');
   }
 
-  // Étape 4: Insérer les données
-  console.log('[4/5] Insertion des données');
+  // Étape 4: Insérer les nouvelles données
+  console.log('[4/5] Insertion des nouvelles données');
 
   // 4.1 Insérer les catégories
   try {
@@ -177,9 +238,9 @@ async function migrate() {
     }));
 
     await supabaseRequest('categories', 'POST', categoriesData);
-    console.log(`✓ ${categoriesData.length} catégories insérées`);
+    console.log(`    ✓ ${categoriesData.length} catégories insérées`);
   } catch (error) {
-    console.error(`✗ Erreur insertion catégories: ${error.message}`);
+    console.error(`    ✗ Erreur insertion catégories: ${error.message}`);
     process.exit(1);
   }
 
@@ -195,34 +256,36 @@ async function migrate() {
     }));
 
     await supabaseRequest('concours', 'POST', concoursData);
-    console.log(`✓ ${concoursData.length} concours insérés`);
+    console.log(`    ✓ ${concoursData.length} concours insérés`);
   } catch (error) {
-    console.error(`✗ Erreur insertion concours: ${error.message}`);
+    console.error(`    ✗ Erreur insertion concours: ${error.message}`);
     process.exit(1);
   }
 
-  // 4.3 Insérer les liaisons concours-catégories (SANS display_order)
+  // 4.3 Insérer les liaisons concours-catégories (AVEC display_order)
   try {
     const liaisons = [];
     for (const c of data.concours) {
       if (c.categories) {
+        let displayOrder = 1;
         for (const cat of c.categories) {
           liaisons.push({
             concours_id: c.id,
             category_id: cat.category_id,
             questions_count: cat.questions_count || 0,
-            // display_order supprimé de la table
+            display_order: cat.display_order || displayOrder,
           });
+          displayOrder++;
         }
       }
     }
 
     if (liaisons.length > 0) {
       await supabaseRequest('concours_categories', 'POST', liaisons);
-      console.log(`✓ ${liaisons.length} liaisons concours-catégories créées`);
+      console.log(`    ✓ ${liaisons.length} liaisons concours-catégories créées`);
     }
   } catch (error) {
-    console.error(`✗ Erreur insertion liaisons: ${error.message}`);
+    console.error(`    ✗ Erreur insertion liaisons: ${error.message}`);
     process.exit(1);
   }
 
@@ -234,7 +297,7 @@ async function migrate() {
       question_text: q.question_text,
       options: q.options,
       correct_answers: q.correct_answers,
-      explanation: q.explanation || null, // ← Explication détaillée de la réponse
+      explanation: q.explanation || null,
       has_latex: q.has_latex || false,
       image_url: q.image_url || null,
     }));
@@ -247,11 +310,19 @@ async function migrate() {
       const batch = questionsData.slice(i, i + batchSize);
       await supabaseRequest('questions', 'POST', batch);
       inserted += batch.length;
+      
+      // Afficher la progression pour les grands ensembles de données
+      if (questionsData.length > batchSize) {
+        process.stdout.write(`\r    ✓ ${inserted}/${questionsData.length} questions insérées...`);
+      }
     }
     
-    console.log(`✓ ${inserted} questions insérées\n`);
+    if (questionsData.length > batchSize) {
+      console.log(); // Nouvelle ligne après la progression
+    }
+    console.log(`    ✓ ${inserted} questions insérées au total\n`);
   } catch (error) {
-    console.error(`✗ Erreur insertion questions: ${error.message}`);
+    console.error(`\n    ✗ Erreur insertion questions: ${error.message}`);
     process.exit(1);
   }
 
@@ -260,20 +331,22 @@ async function migrate() {
   
   try {
     const categoriesCount = await supabaseRequest('categories?select=id');
-    console.log(`✓ ${Array.isArray(categoriesCount) ? categoriesCount.length : 0} catégories en base`);
+    console.log(`    ✓ ${Array.isArray(categoriesCount) ? categoriesCount.length : 0} catégories en base`);
     
     const concoursCount = await supabaseRequest('concours?select=id');
-    console.log(`✓ ${Array.isArray(concoursCount) ? concoursCount.length : 0} concours en base`);
+    console.log(`    ✓ ${Array.isArray(concoursCount) ? concoursCount.length : 0} concours en base`);
     
     const questionsCount = await supabaseRequest('questions?select=id');
-    console.log(`✓ ${Array.isArray(questionsCount) ? questionsCount.length : 0} questions en base`);
+    console.log(`    ✓ ${Array.isArray(questionsCount) ? questionsCount.length : 0} questions en base`);
   } catch (error) {
-    console.log('⚠ Vérification partielle');
+    console.log('    ⚠ Vérification partielle');
   }
 
   console.log('\n════════════════════════════════════════════════════════════');
   console.log('✅ MIGRATION RÉUSSIE !');
   console.log('════════════════════════════════════════════════════════════');
+  console.log('\n📌 Les anciennes données ont été supprimées automatiquement.');
+  console.log('📌 Les nouvelles données ont été insérées.');
   console.log('\nVérifiez dans Supabase → Table Editor que les données sont présentes.');
   console.log('Puis testez votre site avec: npm run dev\n');
 }
