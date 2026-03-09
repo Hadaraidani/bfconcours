@@ -17,7 +17,7 @@ import { supabase, isSupabaseConfigured } from './config/supabase';
 import { submitQuiz, submitCustomExam, QuizAnswer } from './services/quizService';
 // Système de codes d'accès
 import AccessCodeModal from './components/AccessCodeModal';
-import AdminCodesPage from './components/AdminCodesPage';
+import AdminDashboard from './components/AdminDashboard';
 import { clearStoredAccessCode } from './services/accessCodeService';
 // Fallback local si Supabase n'est pas configuré (uniquement en développement)
 import { concoursData as localConcoursData } from './data/questions';
@@ -759,9 +759,9 @@ export function App() {
           />
         )}
         
-        {/* Page d'administration des codes (Ctrl+Shift+A) */}
+        {/* Page d'administration (Ctrl+Shift+A) */}
         {showAdminPage && (
-          <AdminCodesPage onClose={() => setShowAdminPage(false)} />
+          <AdminDashboard onClose={() => setShowAdminPage(false)} />
         )}
         
         <Header 

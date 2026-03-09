@@ -1,11 +1,17 @@
 /**
  * Service de gestion des codes d'accès
- * Permet de vérifier, valider et gérer les codes uniques pour accéder au QCM
+ * 
+ * Supporte deux types de codes :
+ * - Code individuel : 1 code = 1 candidat (lié à un appareil)
+ * - Code universel : 1 code = plusieurs candidats (pour examens collectifs)
  */
 
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 
-// Types
+// ═══════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════
+
 export interface AccessCode {
   id: string;
   token: string;
@@ -18,6 +24,9 @@ export interface AccessCode {
   device_id: string | null;
   created_at: string;
   created_by: string | null;
+  is_universal: boolean;
+  max_uses: number | null;
+  current_uses: number;
 }
 
 export interface VerifyCodeResult {
@@ -33,10 +42,20 @@ export interface CreateCodeParams {
   candidateEmail?: string;
   expiresInHours?: number;
   adminPassword: string;
+  isUniversal?: boolean;
+  maxUses?: number;
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// CONSTANTES
+// ═══════════════════════════════════════════════════════════════════
 
 // Mot de passe administrateur (à changer en production)
 const ADMIN_PASSWORD = 'QCM_ADMIN_2024';
+
+// ═══════════════════════════════════════════════════════════════════
+// FONCTIONS UTILITAIRES
+// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Génère un identifiant unique pour l'appareil
@@ -74,19 +93,26 @@ export function generateDeviceId(): string {
  * Génère un code d'accès aléatoire
  */
 export function generateAccessToken(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclut I, O, 0, 1 pour éviter la confusion
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclut I, O, 0, 1
   let token = '';
   for (let i = 0; i < 8; i++) {
-    if (i === 4) token += '-'; // Format: XXXX-XXXX
+    if (i === 4) token += '-';
     token += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return token;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// VÉRIFICATION DU CODE
+// ═══════════════════════════════════════════════════════════════════
+
 /**
  * Vérifie si un code d'accès est valide
+ * Gère les codes individuels et universels
  */
 export async function verifyAccessCode(token: string): Promise<VerifyCodeResult> {
+  console.log('🔐 Vérification du code d\'accès:', token);
+
   if (!isSupabaseConfigured || !supabase) {
     return {
       success: false,
@@ -94,7 +120,7 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
     };
   }
 
-  const cleanToken = token.toUpperCase().trim();
+  const cleanToken = token.toUpperCase().trim().replace(/\s/g, '');
   const deviceId = generateDeviceId();
 
   try {
@@ -113,6 +139,14 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
       };
     }
 
+    console.log('📋 Code trouvé:', {
+      token: code.token,
+      isUniversal: code.is_universal,
+      maxUses: code.max_uses,
+      currentUses: code.current_uses,
+      used: code.used,
+    });
+
     // Vérifier si le code est expiré
     const expiresAt = new Date(code.expires_at);
     const now = new Date();
@@ -124,7 +158,50 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
       };
     }
 
-    // Vérifier si le code a déjà été utilisé
+    // ═══════════════════════════════════════════════════════════════
+    // CODE UNIVERSEL (plusieurs utilisateurs)
+    // ═══════════════════════════════════════════════════════════════
+    if (code.is_universal) {
+      // Vérifier si le nombre max d'utilisations est atteint
+      if (code.max_uses && code.current_uses >= code.max_uses) {
+        console.log('❌ Code universel épuisé');
+        return {
+          success: false,
+          message: 'Ce code a atteint le nombre maximum d\'utilisations.',
+        };
+      }
+
+      // Incrémenter le compteur d'utilisations
+      const { error: updateError } = await supabase
+        .from('access_codes')
+        .update({
+          current_uses: (code.current_uses || 0) + 1,
+          used_at: new Date().toISOString(),
+        })
+        .eq('id', code.id);
+
+      if (updateError) {
+        console.error('❌ Erreur mise à jour code universel:', updateError);
+        return {
+          success: false,
+          message: 'Erreur lors de la validation du code. Réessayez.',
+        };
+      }
+
+      console.log('✅ Code universel validé');
+      return {
+        success: true,
+        message: 'Code valide. Vous pouvez commencer le QCM.',
+        code: code,
+        concoursId: code.concours_id,
+      };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // CODE INDIVIDUEL (un seul utilisateur)
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Vérifier si le code a déjà été utilisé sur un autre appareil
     if (code.used && code.device_id !== deviceId) {
       console.log('❌ Code déjà utilisé sur un autre appareil:', cleanToken);
       return {
@@ -151,6 +228,7 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
         used: true,
         used_at: new Date().toISOString(),
         device_id: deviceId,
+        current_uses: 1,
       })
       .eq('id', code.id);
 
@@ -162,7 +240,7 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
       };
     }
 
-    console.log('✅ Code validé et appareil enregistré:', cleanToken);
+    console.log('✅ Code individuel validé et appareil enregistré:', cleanToken);
     return {
       success: true,
       message: 'Code validé avec succès. Vous pouvez commencer le QCM.',
@@ -178,6 +256,10 @@ export async function verifyAccessCode(token: string): Promise<VerifyCodeResult>
     };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// CRÉATION DE CODE (ADMIN)
+// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Crée un nouveau code d'accès (admin uniquement)
@@ -218,6 +300,9 @@ export async function createAccessCode(params: CreateCodeParams): Promise<{
         used: false,
         device_id: null,
         created_by: 'admin',
+        is_universal: params.isUniversal || false,
+        max_uses: params.isUniversal ? (params.maxUses || 100) : 1,
+        current_uses: 0,
       });
 
     if (error) {
@@ -228,10 +313,10 @@ export async function createAccessCode(params: CreateCodeParams): Promise<{
       };
     }
 
-    console.log('✅ Code créé:', token);
+    console.log('✅ Code créé:', token, params.isUniversal ? '(universel)' : '(individuel)');
     return {
       success: true,
-      message: `Code créé avec succès. Valide pendant ${expiresInHours} heures.`,
+      message: `Code ${params.isUniversal ? 'universel' : 'individuel'} créé. Valide ${expiresInHours}h.`,
       token: token,
     };
 
@@ -243,6 +328,10 @@ export async function createAccessCode(params: CreateCodeParams): Promise<{
     };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// GESTION DES CODES (ADMIN)
+// ═══════════════════════════════════════════════════════════════════
 
 /**
  * Liste tous les codes (admin uniquement)
@@ -340,8 +429,12 @@ export async function deleteAccessCode(codeId: string, adminPassword: string): P
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// STOCKAGE LOCAL
+// ═══════════════════════════════════════════════════════════════════
+
 /**
- * Vérifie si un code a déjà été validé sur cet appareil (pour permettre de reprendre)
+ * Récupère le code stocké localement
  */
 export function getStoredAccessCode(): string | null {
   return localStorage.getItem('qcm_access_code');
@@ -355,7 +448,7 @@ export function storeAccessCode(token: string): void {
 }
 
 /**
- * Efface le code stocké (après soumission du QCM par exemple)
+ * Efface le code stocké
  */
 export function clearStoredAccessCode(): void {
   localStorage.removeItem('qcm_access_code');
