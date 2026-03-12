@@ -356,3 +356,4 @@ migrate().catch(error => {
   console.error('\n❌ Erreur fatale:', error.message);
   process.exit(1);
 });
+ 

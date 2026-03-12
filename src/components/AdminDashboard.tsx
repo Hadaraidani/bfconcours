@@ -15,6 +15,7 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { concoursData } from '../data/questions';
+import { generateCertificatePDF } from '../services/certificateService';
 
 // Types
 interface AccessCode {
@@ -508,6 +509,79 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
 
   // Vérifier si expiré
   const isExpired = (dateStr: string) => new Date(dateStr) < new Date();
+
+  // Générer le certificat pour un candidat (Top 3)
+  const handleGenerateCertificate = async (submission: Submission, rank: number) => {
+    try {
+      setMessage({ type: 'success', text: 'Génération du certificat en cours...' });
+      
+      // Trouver le nom du concours
+      const concours = concoursData.find(c => c.id === submission.concours_id);
+      const concoursName = concours?.name || submission.concours_id;
+      
+      // La mention est calculée automatiquement par le service
+      // basée UNIQUEMENT sur le pourcentage (score)
+      // Le rang n'affecte PAS la mention
+      
+      const result = await generateCertificatePDF({
+        candidateName: submission.candidate_name,
+        concoursName: concoursName,
+        score: submission.score_final, // Score final à afficher
+        scoreFinal: submission.score_final, // Même valeur pour cohérence
+        totalQuestions: submission.total_questions,
+        date: new Date(submission.created_at).toLocaleDateString('fr-FR', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        }),
+        // Ne pas passer de mention personnalisée - le service calcule basé sur le %
+        rank: rank, // Utilisé uniquement pour forceGenerate (Top 3 toujours éligible)
+        submissionId: submission.id,
+        candidatePhone: submission.candidate_phone,
+        forceGenerate: true, // Les Top 3 sont toujours éligibles
+      });
+      
+      if (result.success) {
+        const percentage = Math.round((submission.score_final / submission.total_questions) * 100);
+        setMessage({ type: 'success', text: `✅ Certificat téléchargé pour ${submission.candidate_name} (${percentage}%)` });
+      } else if (!result.eligible) {
+        setMessage({ type: 'error', text: `Score insuffisant. ${result.message}` });
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Erreur lors de la génération' });
+      }
+    } catch (error) {
+      console.error('Erreur génération certificat:', error);
+      setMessage({ type: 'error', text: 'Erreur lors de la génération du certificat. Vérifiez la console.' });
+    }
+  };
+
+  // Obtenir le classement par concours
+  const getSubmissionsByConcoursWithRank = () => {
+    const filtered = getFilteredSubmissions();
+    const byConcours: { [key: string]: Submission[] } = {};
+    
+    filtered.forEach(s => {
+      if (!byConcours[s.concours_id]) {
+        byConcours[s.concours_id] = [];
+      }
+      byConcours[s.concours_id].push(s);
+    });
+    
+    // Trier chaque concours par score décroissant
+    Object.keys(byConcours).forEach(concoursId => {
+      byConcours[concoursId].sort((a, b) => b.score_final - a.score_final);
+    });
+    
+    return byConcours;
+  };
+
+  // Obtenir le rang d'une soumission dans son concours
+  const getRankInConcours = (submission: Submission): number => {
+    const byConcours = getSubmissionsByConcoursWithRank();
+    const concoursSubmissions = byConcours[submission.concours_id] || [];
+    const index = concoursSubmissions.findIndex(s => s.id === submission.id);
+    return index + 1;
+  };
 
   // ═══════════════════════════════════════════════════════════════════
   // PAGE DE CONNEXION
@@ -1197,12 +1271,30 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
+                                  title="Voir la correction"
                                 >
                                   👁️
                                 </a>
+                                {/* Bouton certificat pour les 3 premiers de chaque concours */}
+                                {(() => {
+                                  const rank = getRankInConcours(s);
+                                  if (rank <= 3) {
+                                    return (
+                                      <button
+                                        onClick={() => handleGenerateCertificate(s, rank)}
+                                        className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-xs font-medium"
+                                        title={`Certificat ${rank === 1 ? '🥇 1er' : rank === 2 ? '🥈 2ème' : '🥉 3ème'}`}
+                                      >
+                                        🏆
+                                      </button>
+                                    );
+                                  }
+                                  return null;
+                                })()}
                                 <button
                                   onClick={() => handleDeleteSubmission(s.id)}
                                   className="px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-xs font-medium"
+                                  title="Supprimer"
                                 >
                                   🗑️
                                 </button>
