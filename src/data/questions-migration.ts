@@ -1,26 +1,38 @@
+// ============================================================================
+// FICHIER DE MIGRATION - questions-migration.ts
+// Généré automatiquement le 12/03/2026 à 19:25:09
+// 
+// Ce fichier contient toutes les données prêtes à être migrées vers Supabase.
+// Commande: npm run migrate
+// ============================================================================
+
+// ============================================================================
+// 1. CATÉGORIES (22 catégories)
+// ============================================================================
+
 export const CATEGORIES = [
   { id: 'francais', name: 'Français', name_short: 'Fra' },
+  { id: 'maths', name: 'Mathématiques', name_short: 'Mat' },
+  { id: 'physique', name: 'Physique', name_short: 'Phy' },
+  { id: 'svt', name: 'SVT', name_short: 'SVT' },
+  { id: 'psychotechnique', name: 'Psychotechnique', name_short: 'Psy' },
+  { id: 'culture', name: 'Culture Générale', name_short: 'Cul' },
+  { id: 'histoire', name: 'Histoire', name_short: 'His' },
   { id: 'droit_constitutionnel', name: 'Droit Constitutionnel', name_short: 'D.Con' },
   { id: 'droit_administratif', name: 'Droit Administratif', name_short: 'D.Adm' },
   { id: 'economie', name: 'Économie', name_short: 'Éco' },
-  { id: 'culture', name: 'Culture Générale', name_short: 'Cul' },
-  { id: 'histoire', name: 'Histoire', name_short: 'His' },
   { id: 'informatique', name: 'Informatique', name_short: 'Inf' },
   { id: 'comptabilite', name: 'Comptabilité', name_short: 'Cpt' },
   { id: 'fiscalite', name: 'Fiscalité', name_short: 'Fis' },
-  { id: 'maths', name: 'Mathématiques', name_short: 'Mat' },
   { id: 'droit_civil', name: 'Droit Civil', name_short: 'D.Civ' },
   { id: 'droit_penal', name: 'Droit Pénal', name_short: 'D.Pén' },
   { id: 'sport', name: 'Sport', name_short: 'Spo' },
-  { id: 'psychotechnique', name: 'Psychotechnique', name_short: 'Psy' },
   { id: 'biologie', name: 'Biologie', name_short: 'Bio' },
   { id: 'anatomie', name: 'Anatomie', name_short: 'Ana' },
   { id: 'soins_infirmiers', name: 'Soins Infirmiers', name_short: 'S.Inf' },
   { id: 'pharmacologie', name: 'Pharmacologie', name_short: 'Pha' },
   { id: 'pedagogie', name: 'Pédagogie', name_short: 'Péd' },
-  { id: 'psychologie', name: 'Psychologie', name_short: 'Psy' },
-  { id: 'physique', name: 'Physique', name_short: 'Phy' },
-  { id: 'svt', name: 'SVT', name_short: 'SVT' }
+  { id: 'psychologie', name: 'Psychologie', name_short: 'Psy' }
 ];
 
 // ============================================================================
@@ -28,84 +40,6 @@ export const CATEGORIES = [
 // ============================================================================
 
 export const CONCOURS = [
-  {
-    id: 'enam',
-    name: 'ENAM - Administration Générale',
-    description: 'Concours d\\',
-    icon: 'ENAM',
-    duration: 120,
-    available: true,
-    categories: [
-      { category_id: 'francais', questions_count: 10, display_order: 1 },
-      { category_id: 'droit_constitutionnel', questions_count: 10, display_order: 2 },
-      { category_id: 'droit_administratif', questions_count: 10, display_order: 3 },
-      { category_id: 'economie', questions_count: 10, display_order: 4 },
-      { category_id: 'culture', questions_count: 8, display_order: 5 },
-      { category_id: 'histoire', questions_count: 5, display_order: 6 },
-      { category_id: 'informatique', questions_count: 3, display_order: 7 }
-    ]
-  },
-  {
-    id: 'enaref',
-    name: 'ENAREF - Impôts et Domaines',
-    description: 'Concours d\\',
-    icon: 'ENAREF',
-    duration: 90,
-    available: true,
-    categories: [
-      { category_id: 'francais', questions_count: 8, display_order: 1 },
-      { category_id: 'comptabilite', questions_count: 10, display_order: 2 },
-      { category_id: 'fiscalite', questions_count: 10, display_order: 3 },
-      { category_id: 'economie', questions_count: 8, display_order: 4 },
-      { category_id: 'maths', questions_count: 5, display_order: 5 },
-      { category_id: 'droit_civil', questions_count: 3, display_order: 6 }
-    ]
-  },
-  {
-    id: 'ensp',
-    name: 'ENSP - Police Nationale',
-    description: 'Concours d\\',
-    icon: 'ENSP',
-    duration: 90,
-    available: true,
-    categories: [
-      { category_id: 'francais', questions_count: 10, display_order: 1 },
-      { category_id: 'droit_penal', questions_count: 12, display_order: 2 },
-      { category_id: 'culture', questions_count: 12, display_order: 3 },
-      { category_id: 'sport', questions_count: 6, display_order: 4 },
-      { category_id: 'psychotechnique', questions_count: 10, display_order: 5 }
-    ]
-  },
-  {
-    id: 'sante',
-    name: 'Santé - Infirmiers d\\',
-    description: 'Concours d\\',
-    icon: 'SANTÉ',
-    duration: 90,
-    available: true,
-    categories: [
-      { category_id: 'francais', questions_count: 8, display_order: 1 },
-      { category_id: 'biologie', questions_count: 12, display_order: 2 },
-      { category_id: 'anatomie', questions_count: 10, display_order: 3 },
-      { category_id: 'soins_infirmiers', questions_count: 10, display_order: 4 },
-      { category_id: 'pharmacologie', questions_count: 5, display_order: 5 }
-    ]
-  },
-  {
-    id: 'ensep',
-    name: 'ENSEP - Éducation Physique',
-    description: 'Concours d\\',
-    icon: 'ENSEP',
-    duration: 75,
-    available: true,
-    categories: [
-      { category_id: 'francais', questions_count: 8, display_order: 1 },
-      { category_id: 'pedagogie', questions_count: 10, display_order: 2 },
-      { category_id: 'sport', questions_count: 10, display_order: 3 },
-      { category_id: 'psychologie', questions_count: 7, display_order: 4 },
-      { category_id: 'biologie', questions_count: 5, display_order: 5 }
-    ]
-  },
   {
     id: 'exam',
     name: 'Examen Blanc',
@@ -122,6 +56,84 @@ export const CONCOURS = [
       { category_id: 'culture', questions_count: 7, display_order: 6 },
       { category_id: 'histoire', questions_count: 6, display_order: 7 }
     ]
+  },
+  {
+    id: 'enam',
+    name: 'ENAM - Administration Générale',
+    description: 'Concours d\\',
+    icon: 'ENAM',
+    duration: 120,
+    available: false,
+    categories: [
+      { category_id: 'francais', questions_count: 10, display_order: 1 },
+      { category_id: 'droit_constitutionnel', questions_count: 10, display_order: 2 },
+      { category_id: 'droit_administratif', questions_count: 10, display_order: 3 },
+      { category_id: 'economie', questions_count: 10, display_order: 4 },
+      { category_id: 'culture', questions_count: 8, display_order: 5 },
+      { category_id: 'histoire', questions_count: 5, display_order: 6 },
+      { category_id: 'informatique', questions_count: 3, display_order: 7 }
+    ]
+  },
+  {
+    id: 'enaref',
+    name: 'ENAREF - Impôts et Domaines',
+    description: 'Concours d\\',
+    icon: 'ENAREF',
+    duration: 90,
+    available: false,
+    categories: [
+      { category_id: 'francais', questions_count: 8, display_order: 1 },
+      { category_id: 'comptabilite', questions_count: 10, display_order: 2 },
+      { category_id: 'fiscalite', questions_count: 10, display_order: 3 },
+      { category_id: 'economie', questions_count: 8, display_order: 4 },
+      { category_id: 'maths', questions_count: 5, display_order: 5 },
+      { category_id: 'droit_civil', questions_count: 3, display_order: 6 }
+    ]
+  },
+  {
+    id: 'ensp',
+    name: 'ENSP - Police Nationale',
+    description: 'Concours d\\',
+    icon: 'ENSP',
+    duration: 90,
+    available: false,
+    categories: [
+      { category_id: 'francais', questions_count: 10, display_order: 1 },
+      { category_id: 'droit_penal', questions_count: 12, display_order: 2 },
+      { category_id: 'culture', questions_count: 12, display_order: 3 },
+      { category_id: 'sport', questions_count: 6, display_order: 4 },
+      { category_id: 'psychotechnique', questions_count: 10, display_order: 5 }
+    ]
+  },
+  {
+    id: 'sante',
+    name: 'Santé - Infirmiers d\\',
+    description: 'Concours d\\',
+    icon: 'SANTÉ',
+    duration: 90,
+    available: false,
+    categories: [
+      { category_id: 'francais', questions_count: 8, display_order: 1 },
+      { category_id: 'biologie', questions_count: 12, display_order: 2 },
+      { category_id: 'anatomie', questions_count: 10, display_order: 3 },
+      { category_id: 'soins_infirmiers', questions_count: 10, display_order: 4 },
+      { category_id: 'pharmacologie', questions_count: 5, display_order: 5 }
+    ]
+  },
+  {
+    id: 'ensep',
+    name: 'ENSEP - Éducation Physique',
+    description: 'Concours d\\',
+    icon: 'ENSEP',
+    duration: 75,
+    available: false,
+    categories: [
+      { category_id: 'francais', questions_count: 8, display_order: 1 },
+      { category_id: 'pedagogie', questions_count: 10, display_order: 2 },
+      { category_id: 'sport', questions_count: 10, display_order: 3 },
+      { category_id: 'psychologie', questions_count: 7, display_order: 4 },
+      { category_id: 'biologie', questions_count: 5, display_order: 5 }
+    ]
   }
 ];
 
@@ -130,6 +142,56 @@ export const CONCOURS = [
 // ============================================================================
 
 export const QUESTIONS = [
+  { concours_id: 'exam', category_id: 'francais', question_text: 'Quelle figure de style se cache derrière l’expression : « C’est à vous à qui je parle » ?', options: ['Redondance', 'Pléonasme', 'Anaphore', 'Tautologie'], correct_answers: [3] },
+  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['On se rappelle quelque chose', 'On se rappelle de quelque chose', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['On se souvient quelque chose', 'On se souvient de quelque chose', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['Je l’ai vu rentrer dans ce restaurant', 'Je l’ai vu entrer dans ce restaurant', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'francais', question_text: "Dans l’expression « qu'il apprît », le verbe est au :'", options: ['subjonctif imparfait', 'subjonctif présent', 'conditionnel passé', 'imparfait présent'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'francais', question_text: 'Lequel de ces mots n’est pas féminin ?:', options: ['Sentinelle', ' Déboire', 'Écritoire', 'Passoire'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'francais', question_text: 'Quelle figure de style est utilisée dans « Cette faucille d\'or dans le champ des étoiles » ?', options: ['Métaphore', 'Comparaison', 'Personnification', 'Hyperbole'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'francais', question_text: '« Qu’il s’en prenne à ses enfants est honteux ! » Dans la phrase ci-dessus, quel est le mode du verbe souligné ?', options: ['Le subjonctif', ' L’indicatif', 'Le conditionnel', 'L’impératif'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'On considère l’équation :$e^{x} = 5$. La solution réelle est :', options: ['$x = \\ln(5)$', '$x = \\log(5)$', '$x = e^{5}$', 'x = 5e'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer : $\\\\lim_{x \\\\to +\\\\infty} \\\\frac{1}{x}$', options: ['$+\\infty$', '$1$', '$0$', '$-\\infty$'], correct_answers: [2], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: "On considère l’intégrale :$\\int_{0}^{1} 3x^{2} dx$ . La valeur de cette intégrale est :", options: ['1', '3', '$\\frac{1}{3}$', '$\\frac{3}{2}$'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer : $\\\\int 2x , dx$', options: ['$x^2 + C$', '$2x^2 + C$', '$x^2$', '$2 + C$'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Écrire le nombre complexe $−\\sqrt3 + i$ sous forme trigonométrique', options: ['$2(\\cos \\\\frac{\\pi}{6} + i \\sin \\\\frac{\\pi}{6}$)', '$2(\\cos \\\\frac{5\\pi}{6} − i \\sin \\\\frac{5\\pi}{6})$', '$2(\\cos (\\\\frac{−5\\pi}{6}) + i \\sin (\\\\frac{−5\\pi}{6}))$', '$2(\\cos (−\\\\frac{\\pi}{6}) + i \\sin (−\\\\frac{\\pi}{6}))$'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Le plan complexe est muni d\'un repère orthonormé direct(O; $\\vec{U}$ ;$\\vec{V}$). On considère les points A et B d\'affixes 1−3𝑖 et 2+i. Laquelle est l’écriture complexe de translation du vecteur $\\overrightarrow{AB}$', options: ['$𝑧\\mapsto𝑧−1−4𝑖$', '$𝑧\\mapsto𝑧+1+4𝑖$', '$𝑧\\mapsto𝑧+3−2𝑖$', '$𝑧\\mapsto𝑧+3+2𝑖$'], correct_answers: [1], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Résoudre : $z^2=-4$', options: ['$z=\\pm 2i$', '$z=\\pm 4$', '$z=2$', 'aucune solution'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'maths', question_text: 'Soit $z=3+4i$. Calculer $|z|$.', options: ['$5$', '$25$', '$\\sqrt{7}$', '$1$'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'Quelle est l\'unité de mesure de la force dans le système international ?', options: ['Joule', 'Newton', 'Watt', 'Pascal'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'La période d’un pendule simple est donnée par :', options: ['$T=2𝜋\\sqrt{\\frac{𝑔}{L}}$', '$T=2𝜋\\sqrt{\\frac{L}{g}}$', '$\\frac{L}{g}$', '$\\frac{g}{L}$'], correct_answers: [1], has_latex: true },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'Un mobile se déplace en ligne droite avec une accélération constante. Sa vitesse initiale est v0=(5 m/s) et son accélération $a=2m/s^2$. Quelle est sa vitesse après 3 s ?', options: ['6 m/s', '11 m/s', '10 m/s', '9 m/s'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'La loi d\'Ohm s\'écrit :', options: ['$U = R \\times I$', '$U = R / I$', '$U = R + I$', '$U = R - I$'], correct_answers: [0], has_latex: true },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'Quelle est la vitesse de la lumière dans le vide ?', options: ['$3 \\times 10^6$ m/s', '$3 \\times 10^8$ m/s', '$3 \\times 10^5$ m/s', '$3 \\times 10^{10}$ m/s'], correct_answers: [1], has_latex: true },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'Un objet de masse 2 kg tombe en chute libre. Quelle est son accélération ? (g = 10 m/s²)', options: ['20 m/s²', '10 m/s²', '5 m/s²', '2 m/s²'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'physique', question_text: 'Quel phénomène explique la décomposition de la lumière blanche par un prisme ?', options: ['La réflexion', 'La diffraction', 'La dispersion'], correct_answers: [2] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel organe produit l\'insuline ?', options: ['Le foie', 'Le pancréas', 'Les reins', 'Aucune bonne réponse'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Quels sont les constituants de l\'ADN ? (Plusieurs réponses)', options: ['Adénine', 'Glucose', 'Thymine', 'Cytosine', 'Guanine', 'Fructose'], correct_answers: [0, 2, 3, 4] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'La photosynthèse se déroule dans :', options: ['Les mitochondries', 'Les chloroplastes', 'Le noyau', 'Les ribosomes'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel est le groupe sanguin donneur universel ?', options: ['A+', 'B+', 'AB+', 'O-'], correct_answers: [3] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Quelles maladies sont causées par des virus ? (Plusieurs réponses)', options: ['Le paludisme', 'La grippe', 'Le SIDA', 'Le choléra', 'La rougeole', 'La tuberculose'], correct_answers: [1, 2, 4] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Combien de chromosomes possède une cellule humaine normale ?', options: ['23', '46', '48', '44'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel est le rôle principal des globules rouges ?', options: ['Défense immunitaire', "Transport d'oxygène", 'Protection contre les bactéries', 'Synthèse des hormones'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Complétez la suite : 2, 6, 18, 54, ...', options: ['108', '162', '72', '160'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Quel mot n\'appartient pas à la même catégorie que les autres ?', options: ['Chien', 'Chat', 'Lion', 'Table'], correct_answers: [3] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Une diaphorèse est une : ', options: ['Transpiration abondante', 'Transpiration normale', 'Absence de transpiration'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: "Monsieur BADOLO hérite d'une somme X. Il doit cependant payer 25% de la  somme héritée en impôts. L'expression, en fonction de X, de la somme Y qui lui reste effectivement est:", options: ['Y = 0,25 X', 'Y = 0,75 X', ' Y = 1,25 X ', ' Y = 2,25 X'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Trouvez le nombre manquants de la série : 241 - 314 - 126 - 703 - ... ', options: ['356 ', '182', '165 ', '839'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Tous les chercheurs sont rigoureux. Certains rigoureux sont distraits. Peut-on affirmer que :', options: ['Tous les chercheurs sont distraits', 'Certains chercheurs sont distraits', 'Aucun chercheur n’est distrait', 'Aucune des affirmations n’est certaine'], correct_answers: [3] },
+  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Trouvez le mot qui complète logiquement la série.KOKOLOGO - OUAGAGOUGOU - POMPOI - KOUPELA - ?', options: ['Zorgho', 'Tenkodogo', 'Banfora', "Fada N'Gourma", 'Salani'], correct_answers: [4] },
+  { concours_id: 'exam', category_id: 'culture', question_text: 'Quel pays africain est le plus vaste en superficie ?', options: ['Soudan', 'Algérie', 'RDC', 'Libye'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'culture', question_text: 'Quelle mesure radicale la junte du capitaine Ibrahim Traoré a-t-elle prise le 10 février 2026 concernant la vie politique burkinabè ? ', options: ["L'organisation d'élections anticipées", 'La dissolution officielle de tous les partis politiques', "La création d'un parti unique", "L'interdiction des syndicats "], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'culture', question_text: "Quel pays africain est qualifié par l'ONU de « pire crise humanitaire au monde » en 2025-2026 ?", options: ['La République démocratique du Congo', ' Le Soudan', 'Le Mali', "L'Éthiopie"], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'culture', question_text: "Comment s'appelle l'organisation créée par Donald Trump comptant 22 membres fondateurs, avec la Russie comme observateur ?", options: ['Alliance for Peace ', ' Board of Peace (Conseil de la paix)', ' Global Security Council', 'World Peace Forum'], correct_answers: [2] },
+  { concours_id: 'exam', category_id: 'culture', question_text: 'Début mars 2026, quel aéroport international a vu ses vols suspendus suite à une attaque de drone iranien ?', options: ['Aéroport de Tel-Aviv', 'Aéroport international de Dubaï', ' Aéroport de Riyad', 'Aéroport de Doha'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'culture', question_text: 'Quel pays a quitté l’Union européenne en 2020 lors du Brexit ?', options: ['Norvège', 'Royaume-Uni', 'Suisse', 'Irlande'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'culture', question_text: 'En 2010, 33 mineurs ont été secourus après avoir passé 69 jours sous terre. Dans quel pays cela s’est-il produit ?:', options: ['Pérou', 'Chili', 'Bolivie', 'Afrique du Sud'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'En 2014, quel événement majeur a conduit à la chute de Blaise Compaoré au Burkina Faso ?', options: ['Une guerre civile', 'Une révolution populaire', 'Une intervention de l’ONU', 'Une catastrophe naturelle'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quel groupe militaire a tenté un coup d’État au Burkina Faso en 2015?', options: ['Armée nationale', 'Garde présidentielle', 'Police nationale', 'Forces spéciales'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quelles puissances coloniales ont colonisé des pays africains ? (Plusieurs réponses)', options: ['France', 'Japon', 'Royaume-Uni', 'Portugal', 'Belgique', 'Chine'], correct_answers: [0, 2, 3, 4] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quel pays africain a connu une révolution en 2011 qui a entraîné la chute de Hosni Moubarak ?', options: ['Égypte', 'Algérie', 'Soudan', 'Libye'], correct_answers: [0] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quelle attaque terroriste majeure a frappé Ouagadougou en janvier 2016 ?', options: ['Attaque du Parlement', 'Attaque du Splendid Hotel', 'Attaque de l’aéroport', 'Attaque du palais présidentiel'], correct_answers: [1] },
+  { concours_id: 'exam', category_id: 'histoire', question_text: 'La Déclaration universelle des droits de l\'homme a été adoptée en :', options: ['1945', '1946', '1948', '1950'], correct_answers: [2] },
   { concours_id: 'enam', category_id: 'francais', question_text: 'Quel est le synonyme de \"rapide\" ?', options: ['Lent', 'Véloce', 'Lourd', 'Petit'], correct_answers: [1] },
   { concours_id: 'enam', category_id: 'francais', question_text: 'Quelle est la nature du mot « rapidement » ?', options: ['Adjectif', 'Adverbe', 'Nom', 'Verbe'], correct_answers: [1] },
   { concours_id: 'enam', category_id: 'francais', question_text: 'Identifiez la phrase correctement orthographiée :', options: ['Les enfants que j', ', ', 'ai vus jouer', 'Les enfants que j', ', ', 'ai vue jouer'], correct_answers: [0] },
@@ -364,55 +426,5 @@ export const QUESTIONS = [
   { concours_id: 'ensep', category_id: 'biologie', question_text: 'Pendant l\'effort, la fréquence cardiaque :', options: ['Diminue', 'Augmente', 'Reste stable', 'S'], correct_answers: [1] },
   { concours_id: 'ensep', category_id: 'biologie', question_text: 'Les courbatures après l\'effort sont dues à :', options: ['Une bonne récupération', 'Des micro-lésions musculaires', 'Un manque de sommeil', 'Une bonne alimentation'], correct_answers: [1] },
   { concours_id: 'ensep', category_id: 'biologie', question_text: 'L\'hydratation pendant l\'effort est :', options: ['Inutile', 'Essentielle', 'Dangereuse', 'Interdite'], correct_answers: [1] },
-  { concours_id: 'ensep', category_id: 'biologie', question_text: 'La respiration pendant l\'effort permet de :', options: ['Apporter de l', ', ', ', ', ', '], correct_answers: [0] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'Quelle figure de style se cache derrière l’expression : « C’est à vous à qui je parle » ?', options: ['Redondance', 'Pléonasme', 'Anaphore', 'Tautologie'], correct_answers: [3] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['On se rappelle quelque chose', 'On se rappelle de quelque chose', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['On se souvient quelque chose', 'On se souvient de quelque chose', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['Je l’ai vu rentrer dans ce restaurant', 'Je l’ai vu entrer dans ce restaurant', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['Rêver à quelque chose', 'Rêver de quelqu’un', 'Rêver de quelque chose', 'A, B ou C selon le contexte'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'On dit et on écrit :', options: ['Écrire sur un registre ou un agenda', 'Écrire dans un registre ou un agenda', 'A ou B au choix', 'A ou B selon le contexte'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'Quelle figure de style est utilisée dans « Cette faucille d\'or dans le champ des étoiles » ?', options: ['Métaphore', 'Comparaison', 'Personnification', 'Hyperbole'], correct_answers: [0] },
-  { concours_id: 'exam', category_id: 'francais', question_text: 'Conjuguez « finir » à la 3ème personne du pluriel au passé simple :', options: ['Ils finissent', 'Ils finirent', 'Ils finissèrent', 'Ils finiront'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer : $\\\\lim_{x\\\\to+\\\\infty}\\\\left(1+\\\\frac{1}{x}\\\\right)^x$', options: ['$1$', '$e$', '$0$', '$+\\infty$'], correct_answers: [1], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer : $\\\\lim_{x \\\\to +\\\\infty} \\\\frac{1}{x}$', options: ['$+\\infty$', '$1$', '$0$', '$-\\infty$'], correct_answers: [2], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Résoudre : $\\ln(x) = 0$', options: ['$x = 0$', '$x = 1$', '$x = e$', '$x = -1$'], correct_answers: [1], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer : $\\\\int 2x , dx$', options: ['$x^2 + C$', '$2x^2 + C$', '$x^2$', '$2 + C$'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Soit $f(x) = x^3$. Calculer $f\'(x)$.', options: ['$3x^2$', '$x^2$', '$3x$', '$x^3$'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Calculer la dérivée de $f(x) = x^3 + 2x^2 - 5x + 1$', options: ['$f', ', ', '(x) = 3x^2 + 2x - 5$', '$f', ', ', '(x) = 3x^3 + 4x - 5$'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Résoudre : $z^2=-4$', options: ['$z=\\pm 2i$', '$z=\\pm 4$', '$z=2$', 'aucune solution'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'maths', question_text: 'Soit $z=3+4i$. Calculer $|z|$.', options: ['$5$', '$25$', '$\\sqrt{7}$', '$1$'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'Quelle est l\'unité de mesure de la force dans le système international ?', options: ['Joule', 'Newton', 'Watt', 'Pascal'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'La formule $E = mc^2$ représente :', options: ['L', ', ', 'énergie potentielle', 'L', ', '], correct_answers: [2], has_latex: true },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'Quelles sont les grandeurs vectorielles ? (Plusieurs réponses)', options: ['La vitesse', 'La masse', 'La force', 'La température', 'L', ', '], correct_answers: [0, 2, 4] },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'La loi d\'Ohm s\'écrit :', options: ['$U = R \\times I$', '$U = R / I$', '$U = R + I$', '$U = R - I$'], correct_answers: [0], has_latex: true },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'Quelle est la vitesse de la lumière dans le vide ?', options: ['$3 \\times 10^6$ m/s', '$3 \\times 10^8$ m/s', '$3 \\times 10^5$ m/s', '$3 \\times 10^{10}$ m/s'], correct_answers: [1], has_latex: true },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'Un objet de masse 2 kg tombe en chute libre. Quelle est son accélération ? (g = 10 m/s²)', options: ['20 m/s²', '10 m/s²', '5 m/s²', '2 m/s²'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'physique', question_text: 'Quel phénomène explique la décomposition de la lumière blanche par un prisme ?', options: ['La réflexion', 'La diffraction', 'La dispersion', 'L'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel organe produit l\'insuline ?', options: ['Le foie', 'Le pancréas', 'Les reins', 'L'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Quels sont les constituants de l\'ADN ? (Plusieurs réponses)', options: ['Adénine', 'Glucose', 'Thymine', 'Cytosine', 'Guanine', 'Fructose'], correct_answers: [0, 2, 3, 4] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'La photosynthèse se déroule dans :', options: ['Les mitochondries', 'Les chloroplastes', 'Le noyau', 'Les ribosomes'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel est le groupe sanguin donneur universel ?', options: ['A+', 'B+', 'AB+', 'O-'], correct_answers: [3] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Quelles maladies sont causées par des virus ? (Plusieurs réponses)', options: ['Le paludisme', 'La grippe', 'Le SIDA', 'Le choléra', 'La rougeole', 'La tuberculose'], correct_answers: [1, 2, 4] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Combien de chromosomes possède une cellule humaine normale ?', options: ['23', '46', '48', '44'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'svt', question_text: 'Quel est le rôle principal des globules rouges ?', options: ['Défense immunitaire', 'Transport d', ', ', ', '], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Complétez la suite : 2, 6, 18, 54, ...', options: ['108', '162', '72', '160'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Quel mot n\'appartient pas à la même catégorie que les autres ?', options: ['Chien', 'Chat', 'Lion', 'Table'], correct_answers: [3] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Une diaphorèse est une : ', options: ['Transpiration abondante', 'Transpiration normale', 'Absence de transpiration'], correct_answers: [0] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Trouvez le mot qui complète logiquement la série. Un neveu - Trois soeurs - Quatre enfants - Sept tantes', options: ['Neuf veaux', 'Douze escargots', 'Quinze habits', 'Vingt sacs'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Trouvez le mot qui complète logiquement la série. ABRI - DEPART - EFFET - HIER - ? ', options: ['TOIT', 'VENT', 'TUILE', 'BRIQUE', 'TARD'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Tous les chercheurs sont rigoureux. Certains rigoureux sont distraits. Peut-on affirmer que :', options: ['Tous les chercheurs sont distraits', 'Certains chercheurs sont distraits', 'Aucun chercheur n’est distrait', 'Aucune des affirmations n’est certaine'], correct_answers: [3] },
-  { concours_id: 'exam', category_id: 'psychotechnique', question_text: 'Trouvez le mot qui complète logiquement la série.KOKOLOGO - OUAGAGOUGOU - POMPOI - KOUPELA - ?', options: ['Zorgho', 'Tenkodogo', 'Banfora', 'Fada N', ', '], correct_answers: [4] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Quel pays africain est le plus vaste en superficie ?', options: ['Soudan', 'Algérie', 'RDC', 'Libye'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Le barrage d’Assouan est situé sur quel fleuve ?', options: ['Congo', 'Niger', 'Nil', 'Zambèze'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Le lac Victoria est partagé par combien de pays ?', options: ['2', '3', '4', '5'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Quel est le plus long fleuve d\'Afrique ?', options: ['Le Congo', 'Le Niger', 'Le Nil', 'Le Zambèze'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'L\'ONU a été fondée en quelle année ?', options: ['1942', '1945', '1948', '1950'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Combien de pays composent l\'Union Africaine ?', options: ['45', '50', '55', '60'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'culture', question_text: 'Thomas Sankara fut président de :', options: ['Mali', 'Burkina Faso', 'Niger', 'Guinée'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'Qui était le premier président du Burkina Faso (alors Haute-Volta) ?', options: ['Thomas Sankara', 'Maurice Yaméogo', 'Sangoulé Lamizana', 'Blaise Compaoré'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'En quelle année la Haute-Volta a-t-elle été renommée Burkina Faso ?', options: ['1980', '1984', '1987', '1990'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quelles puissances coloniales ont colonisé des pays africains ? (Plusieurs réponses)', options: ['France', 'Japon', 'Royaume-Uni', 'Portugal', 'Belgique', 'Chine'], correct_answers: [0, 2, 3, 4] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'La Seconde Guerre mondiale s\'est terminée en :', options: ['1943', '1944', '1945', '1946'], correct_answers: [2] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'Quel empire africain était dirigé par Soundiata Keïta ?', options: ['Empire Songhaï', 'Empire du Mali', 'Empire du Ghana', 'Empire Mossi'], correct_answers: [1] },
-  { concours_id: 'exam', category_id: 'histoire', question_text: 'La Déclaration universelle des droits de l\'homme a été adoptée en :', options: ['1945', '1946', '1948', '1950'], correct_answers: [2] }
+  { concours_id: 'ensep', category_id: 'biologie', question_text: 'La respiration pendant l\'effort permet de :', options: ['Apporter de l', ', ', ', ', ', '], correct_answers: [0] }
 ];
