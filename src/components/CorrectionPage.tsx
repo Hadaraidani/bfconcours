@@ -410,11 +410,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
                   <div className="p-4">
                     {/* Texte de la question */}
                     <div className="mb-4 text-gray-800">
-                      {q.has_latex ? (
-                        <MathRenderer text={q.question_text} />
-                      ) : (
-                        <p>{q.question_text}</p>
-                      )}
+                      <MathRenderer text={q.question_text || ''} />
                     </div>
 
                     {/* Image si présente */}
@@ -473,11 +469,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
 
                             {/* Texte de l'option */}
                             <div className="flex-1">
-                              {q.has_latex ? (
-                                <MathRenderer text={option} />
-                              ) : (
-                                <span>{option}</span>
-                              )}
+                              <MathRenderer text={option || ''} />
                             </div>
 
                             {/* Badges */}
@@ -512,11 +504,7 @@ export function CorrectionPage({ submissionId, onGoHome }: CorrectionPageProps) 
                           <div className="flex-1">
                             <h4 className="font-semibold text-blue-800 mb-2">Explication</h4>
                             <div className="text-blue-700 text-sm leading-relaxed whitespace-pre-wrap">
-                              {q.has_latex ? (
-                                <MathRenderer text={q.explanation} />
-                              ) : (
-                                q.explanation
-                              )}
+                              <MathRenderer text={q.explanation || ''} />
                             </div>
                           </div>
                         </div>

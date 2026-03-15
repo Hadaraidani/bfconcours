@@ -13,16 +13,26 @@ interface MathRendererProps {
 
 /**
  * Normalise les backslashes pour KaTeX
- * Supabase stocke \\ qui doit devenir \ pour KaTeX
+ * Supabase stocke les formules avec des doubles backslashes (\\frac)
+ * KaTeX a besoin de simples backslashes (\frac)
  */
 function normalizeLatex(text: string): string {
   if (!text) return '';
   
-  // Remplacer les doubles backslashes par des simples
+  // Méthode générale : remplacer tous les doubles backslashes par des simples
   // \\frac -> \frac, \\infty -> \infty, etc.
-  let normalized = text
-    .replace(/\\\\/g, '\\')  // \\\\ -> \\
-    .replace(/\\'/g, "'");   // \' -> '
+  let normalized = text;
+  
+  // Remplacer les doubles backslashes devant les lettres (commandes LaTeX)
+  // \\frac -> \frac
+  normalized = normalized.replace(/\\\\([a-zA-Z])/g, '\\$1');
+  
+  // Remplacer les doubles backslashes devant les accolades
+  // \\{ -> \{
+  normalized = normalized.replace(/\\\\([{}])/g, '\\$1');
+  
+  // Nettoyer les apostrophes échappées
+  normalized = normalized.replace(/\\'/g, "'");
   
   return normalized;
 }
