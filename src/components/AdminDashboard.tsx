@@ -457,6 +457,75 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     setMessage({ type: 'success', text: 'Export CSV téléchargé' });
   };
 
+  // Recalculer tous les scores
+  const handleRecalculateScores = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      setMessage({ type: 'error', text: 'Supabase non configuré' });
+      return;
+    }
+
+    const confirm = window.confirm(
+      '⚠️ Recalculer tous les scores ?\n\n' +
+      'Cette action va :\n' +
+      '• Récupérer les nouvelles bonnes réponses depuis la base\n' +
+      '• Recalculer le score de chaque soumission\n' +
+      '• Mettre à jour les corrections\n\n' +
+      'Utilisez cette fonction si vous avez corrigé des réponses dans la table "questions".\n\n' +
+      'Continuer ?'
+    );
+
+    if (!confirm) return;
+
+    setIsLoading(true);
+    setMessage({ type: 'success', text: '🔄 Recalcul en cours...' });
+
+    try {
+      // Appeler la fonction RPC de recalcul
+      const { data, error } = await supabase.rpc('recalculate_all_scores');
+
+      if (error) {
+        // Si la fonction n'existe pas, afficher les instructions
+        if (error.message.includes('does not exist')) {
+          setMessage({ 
+            type: 'error', 
+            text: 'La fonction de recalcul n\'existe pas. Exécutez le script SQL depuis docs/RECALCUL_SCORES.md dans Supabase.' 
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        // Compter les changements
+        let improved = 0;
+        let decreased = 0;
+        let unchanged = 0;
+
+        if (data && Array.isArray(data)) {
+          data.forEach((row: { difference: number }) => {
+            if (row.difference > 0) improved++;
+            else if (row.difference < 0) decreased++;
+            else unchanged++;
+          });
+        }
+
+        setMessage({ 
+          type: 'success', 
+          text: `✅ Recalcul terminé ! ${improved} améliorés, ${decreased} diminués, ${unchanged} inchangés.` 
+        });
+
+        // Recharger les données
+        await loadAllData();
+      }
+    } catch (err) {
+      console.error('Erreur recalcul:', err);
+      setMessage({ 
+        type: 'error', 
+        text: 'Erreur lors du recalcul. Consultez la console pour plus de détails.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Filtrer les soumissions
   const getFilteredSubmissions = () => {
     return submissions.filter(s => {
@@ -791,6 +860,36 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   <div className="text-sm text-gray-500">{stat.label}</div>
                 </div>
               ))}
+            </div>
+
+            {/* Actions rapides */}
+            <div className="bg-white rounded-xl shadow-sm border p-4">
+              <h2 className="font-bold text-gray-800 mb-4">⚡ Actions rapides</h2>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleRecalculateScores}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isLoading ? (
+                    <span className="animate-spin">⏳</span>
+                  ) : (
+                    <span>🔄</span>
+                  )}
+                  Recalculer tous les scores
+                </button>
+                <button
+                  onClick={loadAllData}
+                  disabled={isLoading}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+                >
+                  🔃 Rafraîchir les données
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                💡 Utilisez "Recalculer tous les scores" si vous avez corrigé des réponses dans la base de données.
+                Les scores de toutes les soumissions seront mis à jour avec les nouvelles bonnes réponses.
+              </p>
             </div>
 
             {/* Dernières soumissions */}
