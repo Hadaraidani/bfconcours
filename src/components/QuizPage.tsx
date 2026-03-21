@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Concours, UserAnswer, Question, Theme } from '../types';
 import { categoryLabels, categoryLabelsShort } from '../data/questions';
 import { MathRenderer, QuestionImage } from './MathRenderer';
-import ProctoringConsent from './ProctoringConsent';
+import ProctoringConsent from './roctoringConsent';
 import {
   startProctoringSession,
   endProctoringSession,
   ProctoringAlert,
   getSessionSummary,
-} from '../services/proctoringService';
+} from '../services/roctoringService';
 
 interface QuizPageProps {
   concours: Concours;
