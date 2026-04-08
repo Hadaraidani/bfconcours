@@ -1,0 +1,192 @@
+{
+  "name": "academique-burkina",
+  "version": "1.0.0",
+
+  "page": {
+    "orientation": "landscape",
+    "format": "a4",
+    "margin": 12
+  },
+
+  "background": {
+    "visible": false,
+    "color": "#FFFFFF",
+    "opacity": 1,
+    "size": "cover",
+    "position": "center",
+    "repeat": "no-repeat",
+    "zoom": 1,
+    "offsetX": 0,
+    "offsetY": 0
+  },
+
+  "customTexts": [],
+  "customImages": [],
+
+  "watermark": {
+    "text": "Formation 2026",
+    "fontSize": 50,
+    "angle": -25,
+    "color": "#F8F8F8",
+    "columns": 4,
+    "rows": 3,
+    "startX": 30,
+    "startY": 40,
+    "spacingX": 80,
+    "spacingY": 70,
+    "visible": true
+  },
+
+  "borders": {
+    "outer": { "color": "#B8860B", "width": 2, "inset": 0 },
+    "middle": { "color": "#DAA520", "width": 0.5, "inset": 4 },
+    "inner": { "color": "#B8860B", "width": 1, "inset": 7 },
+    "corners": {
+      "visible": true,
+      "radius": 3,
+      "lineWidth": 1.5,
+      "lineLength": 12,
+      "fillColor": "#DAA520",
+      "strokeColor": "#B8860B"
+    }
+  },
+
+  "emblem": {
+    "src": "/images/EBM1.png",
+    "width": 32,
+    "height": 32,
+    "x": 132.5,
+    "y": 25,
+    "fallbackVisible": true
+  },
+
+  "header": {
+    "countryName": {
+      "text": "BURKINA FASO",
+      "x": 148.5,
+      "y": 66,
+      "style": { "fontSize": 18, "fontStyle": "bold", "color": "#1F2937", "align": "center" }
+    },
+    "motto": {
+      "text": "La Patrie ou la Mort Nous Vaincrons",
+      "x": 148.5,
+      "y": 72,
+      "style": { "fontSize": 11, "fontStyle": "italic", "color": "#6B7280", "align": "center" }
+    },
+    "separator": {
+      "x": 148.5,
+      "y": 80,
+      "lineColor": "#B8860B",
+      "lineWidth": 0.5,
+      "halfLength": 50,
+      "gap": 8,
+      "dotRadius": 2.5,
+      "dotColor": "#B8860B"
+    }
+  },
+
+  "title": {
+    "text": "CERTIFICAT DE RÉUSSITE",
+    "x": 148.5,
+    "y": 92,
+    "fontSize": 30,
+    "color": "#1E3A8A",
+    "underline": {
+      "y": 98,
+      "color": "#B8860B",
+      "width1": 1.5,
+      "width2": 0.5,
+      "length1": 65,
+      "length2": 60,
+      "gap": 2
+    }
+  },
+
+  "body": {
+    "prefixText": {
+      "text": "Nous certifions que",
+      "x": 148.5,
+      "y": 108,
+      "style": { "fontSize": 13, "fontStyle": "normal", "color": "#4B5563", "align": "center" }
+    },
+    "candidateName": {
+      "x": 148.5,
+      "y": 120,
+      "fontSize": 26,
+      "maxFontSize": 26,
+      "minFontSize": 14,
+      "color": "#1E3A8A",
+      "maxWidth": 220,
+      "underlineColor": "#DAA520",
+      "underlineWidth": 1,
+      "underlinePadding": 15
+    },
+    "successText": {
+      "text": "a réussi avec succès l'évaluation du concours",
+      "x": 148.5,
+      "y": 132,
+      "style": { "fontSize": 12, "fontStyle": "normal", "color": "#4B5563", "align": "center" }
+    },
+    "concoursName": {
+      "x": 148.5,
+      "y": 142,
+      "style": { "fontSize": 16, "fontStyle": "bold", "color": "#1F2937", "align": "center" }
+    }
+  },
+
+  "results": {
+    "y": 152,
+    "width": 55,
+    "height": 18,
+    "gap": 10,
+    "labelFontSize": 7,
+    "valueFontSize": 12,
+    "fillColor": "#F9FAFB",
+    "borderColor": "#B8860B",
+    "labelColor": "#6B7280",
+    "valueColor": "#1F2937",
+    "cornerRadius": 2
+  },
+
+  "date": {
+    "x": 148.5,
+    "y": 182,
+    "style": { "fontSize": 11, "fontStyle": "normal", "color": "#6B7280", "align": "center" }
+  },
+
+  "footer": {
+    "separator": {
+      "y": 188,
+      "color": "#D1D5DB",
+      "width": 0.3,
+      "marginX": 25
+    },
+    "signature": {
+      "x": 70,
+      "y": 194,
+      "title": "Le Directeur",
+      "name": "Formation Concours 2026",
+      "titleStyle": { "fontSize": 10, "fontStyle": "normal", "color": "#4B5563", "align": "center" },
+      "nameStyle": { "fontSize": 10, "fontStyle": "bold", "color": "#000000", "align": "center" },
+      "lineColor": "#9CA3AF",
+      "lineWidth": 0.5
+    },
+    "qrCode": {
+      "x": 148.5,
+      "y": 194,
+      "size": 18,
+      "visible": true,
+      "label": "Scanner pour vérifier",
+      "labelStyle": { "fontSize": 6, "fontStyle": "normal", "color": "#9CA3AF", "align": "center" }
+    },
+    "certificateId": {
+      "x": 227,
+      "y": 194,
+      "label": "Certificat N°",
+      "labelStyle": { "fontSize": 8, "fontStyle": "normal", "color": "#6B7280", "align": "center" },
+      "valueStyle": { "fontSize": 10, "fontStyle": "bold", "color": "#1F2937", "align": "center" },
+      "urlStyle": { "fontSize": 5, "fontStyle": "normal", "color": "#9CA3AF", "align": "center" },
+      "maxUrlLength": 40
+    }
+  }
+}

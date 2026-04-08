@@ -19,6 +19,8 @@ import { submitQuiz, submitCustomExam, QuizAnswer } from './services/quizService
 import AccessCodeModal from './components/AccessCodeModal';
 import AdminDashboard from './components/AdminDashboard';
 import { clearStoredAccessCode } from './services/accessCodeService';
+import NotificationToast from './components/NotificationToast';
+import { notifySuccess, notifyError, notifyInfo } from './services/notificationService';
 // Fallback local si Supabase n'est pas configuré (uniquement en développement)
 import { concoursData as localConcoursData } from './data/questions';
 
@@ -484,12 +486,18 @@ export function App() {
 
         setQuizResult(result);
         setStep('result');
+
+        // Notification de succès
+        notifySuccess(
+          'Examen soumis !',
+          `Votre copie pour ${selectedConcours.name} a été envoyée avec succès.`
+        );
         return;
       } else {
         console.error('❌ Erreur soumission Supabase:', submitResult.error);
         // En cas d'erreur, on ne fait PAS de fallback local pour les examens officiels
         // Cela garantit la sécurité (pas de calcul côté client)
-        alert('Erreur lors de la soumission. Veuillez réessayer.');
+        notifyError('Erreur de soumission', 'Impossible d\'enregistrer votre copie. Veuillez réessayer.');
         return;
       }
     }
@@ -574,6 +582,12 @@ export function App() {
 
           setQuizResult(result);
           setStep('result');
+
+          // Notification de succès
+          notifySuccess(
+            'Examen personnalisé terminé !',
+            `Votre copie a été envoyée avec succès.`
+          );
           return;
         } else {
           console.warn('⚠️ Erreur Supabase pour examen personnalisé, fallback local:', customResult.error);
@@ -617,6 +631,9 @@ export function App() {
 
       setQuizResult(result);
       setStep('result');
+
+      // Notification
+      notifySuccess('Examen terminé !', `Votre copie a été envoyée avec succès.`);
       return;
     }
 
@@ -1077,7 +1094,7 @@ export function App() {
 
   if (step === 'quiz' && selectedConcours) {
     // Activer le proctoring uniquement pour les examens officiels (pas les examens personnalisés)
-    const enableProctoring = selectedConcours.id !== 'custom-exam';
+    const enableProctoring = false;
     return (
       <QuizPage 
         concours={selectedConcours} 

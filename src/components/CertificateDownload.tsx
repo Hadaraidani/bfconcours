@@ -5,11 +5,12 @@
 
 import { useState } from 'react';
 import {
-  generateCertificatePDF,
+  generateCertificate,
   isEligibleForCertificate,
   getMention,
-  CertificateData,
-} from '../services/certificateService';
+  safePercentage,
+  type CertificateData,
+} from '../services/certificate';
 
 interface CertificateDownloadProps {
   candidateName: string;
@@ -36,7 +37,7 @@ export default function CertificateDownload({
     certificateId?: string;
   } | null>(null);
   
-  const percentage = Math.round((scoreFinal / totalQuestions) * 100);
+  const percentage = safePercentage(scoreFinal, totalQuestions);
   const eligible = isEligibleForCertificate(percentage);
   const mention = getMention(percentage);
   
@@ -58,7 +59,7 @@ export default function CertificateDownload({
       submissionId,
     };
     
-    const result = await generateCertificatePDF(data);
+    const result = await generateCertificate(data);
     
     setDownloadStatus({
       success: result.success,

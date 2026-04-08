@@ -15,7 +15,17 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../config/supabase';
 import { concoursData } from '../data/questions';
-import { generateCertificatePDF } from '../services/certificateService';
+import { generateCertificate } from '../services/certificate';
+import { ScheduledResult } from '../types';
+import {
+  getScheduledResults,
+  scheduleResult,
+  scheduleAllResults,
+  sendResultNow,
+  deleteScheduledResult,
+  generateWhatsAppLink,
+} from '../services/scheduledResultsService';
+import TemplateEditor from './TemplateEditor';
 
 // Types
 interface AccessCode {
@@ -72,14 +82,19 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [authError, setAuthError] = useState('');
 
   // États de navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'codes' | 'submissions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'codes' | 'submissions' | 'scheduled' | 'template'>('dashboard');
 
   // États des données
   const [stats, setStats] = useState<Stats | null>(null);
   const [codes, setCodes] = useState<AccessCode[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [scheduledResults, setScheduledResults] = useState<ScheduledResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // États pour l'onglet Envois
+  const [scheduledDatetime, setScheduledDatetime] = useState('');
+  const [scheduledFilter, setScheduledFilter] = useState<'all' | 'pending' | 'sent' | 'error'>('all');
 
   // Filtres
   const [filterConcours, setFilterConcours] = useState<string>('');
@@ -144,6 +159,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       loadStats(),
       loadCodes(),
       loadSubmissions(),
+      loadScheduledResults(),
     ]);
     setIsLoading(false);
   };
@@ -237,6 +253,19 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
     } catch (error) {
       console.error('Erreur chargement soumissions:', error);
     }
+   };
+  // Charger les envois programmés
+  const loadScheduledResults = async () => {
+    const result = await getScheduledResults();
+    if (result.success) {
+      setScheduledResults(result.data);
+    }
+  };
+
+  // Filtrer les envois programmés
+  const getFilteredScheduledResults = () => {
+    if (scheduledFilter === 'all') return scheduledResults;
+    return scheduledResults.filter(r => r.status === scheduledFilter);
   };
 
   // Générer un code d'accès
@@ -592,7 +621,7 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
       // basée UNIQUEMENT sur le pourcentage (score)
       // Le rang n'affecte PAS la mention
       
-      const result = await generateCertificatePDF({
+      const result = await generateCertificate({
         candidateName: submission.candidate_name,
         concoursName: concoursName,
         score: submission.score_final, // Score final à afficher
@@ -745,10 +774,12 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
                   { id: 'dashboard', label: 'Tableau de bord', icon: '📊' },
                   { id: 'codes', label: 'Codes', icon: '🔑' },
                   { id: 'submissions', label: 'Soumissions', icon: '📝' },
+                  { id: 'scheduled', label: `Envois${scheduledResults.filter(r => r.status === 'pending').length > 0 ? ` (${scheduledResults.filter(r => r.status === 'pending').length})` : ''}`, icon: '📨' },
+                  { id: 'template', label: 'Template Global', icon: '🎨' },
                 ].map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions')}
+                    onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions' | 'scheduled' | 'template')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                       activeTab === tab.id
                         ? 'bg-white text-emerald-700'
@@ -779,10 +810,12 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
               { id: 'dashboard', label: '📊', full: 'Dashboard' },
               { id: 'codes', label: '🔑', full: 'Codes' },
               { id: 'submissions', label: '📝', full: 'Résultats' },
+              { id: 'scheduled', label: '📨', full: 'Envois' },
+              { id: 'template', label: '🎨', full: 'Template' },
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions')}
+                onClick={() => setActiveTab(tab.id as 'dashboard' | 'codes' | 'submissions' | 'scheduled' | 'template')}
                 className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                   activeTab === tab.id
                     ? 'bg-white text-emerald-700'
@@ -1408,7 +1441,267 @@ export default function AdminDashboard({ onClose }: AdminDashboardProps) {
             </div>
           </>
         )}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {/* TAB: ENVOIS PROGRAMMÉS */}
+        {/* ═══════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'scheduled' && (
+          <>
+            {/* Section programmation */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">📅</span>
+                Programmer l'envoi des résultats
+              </h2>
+              <div className="flex flex-col sm:flex-row gap-4 items-end">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date et heure d'envoi</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduledDatetime}
+                    onChange={(e) => setScheduledDatetime(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  />
+                </div>
+                <button
+                  onClick={async () => {
+                    if (!scheduledDatetime) {
+                      setMessage({ type: 'error', text: 'Veuillez choisir une date et heure' });
+                      return;
+                    }
+                    setIsLoading(true);
+                    const result = await scheduleAllResults(new Date(scheduledDatetime));
+                    setIsLoading(false);
+                    setMessage({ type: result.success ? 'success' : 'error', text: result.message });
+                    if (result.success) {
+                      loadScheduledResults();
+                    }
+                  }}
+                  disabled={isLoading || !scheduledDatetime}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-semibold disabled:opacity-50 whitespace-nowrap"
+                >
+                  📨 Programmer tous les envois en attente
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-3">
+                💡 Les résultats avec le statut "En attente" seront programmés pour envoi à la date choisie.
+                L'envoi sera effectué automatiquement par la fonction CRON.
+              </p>
+            </div>
+
+            {/* Filtres */}
+            <div className="bg-white rounded-xl shadow-sm border p-4">
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'all', label: 'Tous', count: scheduledResults.length },
+                  { id: 'pending', label: 'En attente', count: scheduledResults.filter(r => r.status === 'pending').length },
+                  { id: 'sent', label: 'Envoyés', count: scheduledResults.filter(r => r.status === 'sent').length },
+                  { id: 'error', label: 'Erreurs', count: scheduledResults.filter(r => r.status === 'error').length },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setScheduledFilter(f.id as 'all' | 'pending' | 'sent' | 'error')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      scheduledFilter === f.id
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+                <button
+                  onClick={loadScheduledResults}
+                  disabled={isLoading}
+                  className="ml-auto px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm disabled:opacity-50"
+                >
+                  🔃 Rafraîchir
+                </button>
+              </div>
+            </div>
+
+            {/* Liste des envois */}
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-600">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Candidat</th>
+                      <th className="px-4 py-3 text-left hidden sm:table-cell">Contact</th>
+                      <th className="px-4 py-3 text-left hidden md:table-cell">Concours</th>
+                      <th className="px-4 py-3 text-center">Score</th>
+                      <th className="px-4 py-3 text-center hidden sm:table-cell">Programmé</th>
+                      <th className="px-4 py-3 text-center">Statut</th>
+                      <th className="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {getFilteredScheduledResults().length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-4xl">📭</span>
+                            <p className="font-medium">Aucun envoi programmé</p>
+                            <p className="text-xs">Les résultats apparaîtront ici après soumission des QCM</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredScheduledResults().map((sr) => (
+                        <tr key={sr.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-800">{sr.candidate_name || '—'}</div>
+                            <div className="text-xs text-gray-500">{formatDate(sr.created_at)}</div>
+                          </td>
+                          <td className="px-4 py-3 hidden sm:table-cell">
+                            <div className="space-y-1">
+                              {sr.user_email && (
+                                <div className="text-xs text-gray-600 flex items-center gap-1">
+                                  <span>📧</span> {sr.user_email}
+                                </div>
+                              )}
+                              {sr.user_phone && (
+                                <div className="text-xs text-gray-600 flex items-center gap-1">
+                                  <span>📱</span> {sr.user_phone}
+                                </div>
+                              )}
+                              {!sr.user_email && !sr.user_phone && (
+                                <span className="text-xs text-gray-400">Non renseigné</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 hidden md:table-cell text-gray-600">{sr.concours_name || '—'}</td>
+                          <td className="px-4 py-3 text-center">
+                            {sr.score_final != null && sr.total_questions != null ? (
+                              <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                                (sr.score_final / sr.total_questions) >= 0.7 ? 'bg-emerald-100 text-emerald-700' :
+                                (sr.score_final / sr.total_questions) >= 0.5 ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {sr.score_final}/{sr.total_questions}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center hidden sm:table-cell">
+                            {sr.scheduled_at ? (
+                              <span className="text-xs text-blue-600 font-medium">
+                                {formatDate(sr.scheduled_at)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">Non programmé</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${
+                              sr.status === 'sent' ? 'bg-emerald-100 text-emerald-700' :
+                              sr.status === 'error' ? 'bg-red-100 text-red-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {sr.status === 'sent' ? '✅ Envoyé' : sr.status === 'error' ? '❌ Erreur' : '⏳ En attente'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              {sr.status === 'pending' && (
+                                <>
+                                  <button
+                                    onClick={async () => {
+                                      setIsLoading(true);
+                                      const res = await sendResultNow(sr.id);
+                                      setIsLoading(false);
+                                      setMessage({ type: res.success ? 'success' : 'error', text: res.message });
+                                      loadScheduledResults();
+                                    }}
+                                    disabled={isLoading}
+                                    className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors text-xs font-medium disabled:opacity-50"
+                                    title="Envoyer maintenant"
+                                  >
+                                    📧 Envoyer
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      const datetime = prompt('Date et heure (AAAA-MM-JJ HH:MM) :', new Date(Date.now() + 3600000).toISOString().slice(0, 16).replace('T', ' '));
+                                      if (!datetime) return;
+                                      setIsLoading(true);
+                                      const res = await scheduleResult(sr.id, new Date(datetime.replace(' ', 'T')));
+                                      setIsLoading(false);
+                                      setMessage({ type: res.success ? 'success' : 'error', text: res.message });
+                                      loadScheduledResults();
+                                    }}
+                                    disabled={isLoading}
+                                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium disabled:opacity-50"
+                                    title="Programmer"
+                                  >
+                                    📅
+                                  </button>
+                                </>
+                              )}
+                              {sr.user_phone && !sr.user_email && sr.status === 'pending' && (
+                                <a
+                                  href={generateWhatsAppLink(
+                                    sr.user_phone,
+                                    sr.candidate_name || 'Candidat',
+                                    sr.score_final ?? sr.score ?? 0,
+                                    sr.total_questions ?? 0,
+                                    sr.correction_url || undefined
+                                  )}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-xs font-medium"
+                                  title="Envoyer via WhatsApp"
+                                >
+                                  💬 WhatsApp
+                                </a>
+                              )}
+                              {sr.status === 'error' && (
+                                <button
+                                  onClick={async () => {
+                                    setIsLoading(true);
+                                    const res = await sendResultNow(sr.id);
+                                    setIsLoading(false);
+                                    setMessage({ type: res.success ? 'success' : 'error', text: res.message });
+                                    loadScheduledResults();
+                                  }}
+                                  disabled={isLoading}
+                                  className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg hover:bg-amber-200 transition-colors text-xs font-medium disabled:opacity-50"
+                                  title="Réessayer"
+                                >
+                                  🔄 Réessayer
+                                </button>
+                              )}
+                              <button
+                                onClick={async () => {
+                                  if (!window.confirm('Supprimer cet envoi ?')) return;
+                                  setIsLoading(true);
+                                  const res = await deleteScheduledResult(sr.id);
+                                  setIsLoading(false);
+                                  setMessage({ type: res.success ? 'success' : 'error', text: res.message });
+                                  loadScheduledResults();
+                                }}
+                                disabled={isLoading}
+                                className="px-2 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-xs font-medium disabled:opacity-50"
+                                title="Supprimer"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+        {/* --- TEMPLATE EDITOR TAB --- */}
+        {activeTab === 'template' && (
+          <div className="bg-white rounded-xl shadow-lg border border-emerald-100 overflow-hidden" style={{ height: 'calc(100vh - 120px)' }}>
+            <TemplateEditor />
+          </div>
+        )}
       </div>
+
 
       {/* Modal de confirmation de suppression */}
       {showDeleteModal && (

@@ -1,6 +1,7 @@
 import { Theme } from '../types';
 import { THEME_CONFIG } from '../config/site';
 import { User, LogIn, LogOut } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
 
 interface HeaderProps {
   theme: Theme;
@@ -40,9 +41,9 @@ export function Header({
   };
 
   return (
-    <header className="relative overflow-hidden">
+    <header className="relative">
       {/* Gradient principal */}
-      <div className={`bg-gradient-to-r ${getGradientClass()} text-white`}>
+      <div className={`bg-gradient-to-r ${getGradientClass()} text-white overflow-hidden`}>
         {/* Motifs décoratifs */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-24 -right-24 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
@@ -115,6 +116,9 @@ export function Header({
                     Sécurisé SSL
                   </span>
                 </div>
+
+                {/* Centre de notifications */}
+                <NotificationCenter />
 
                 {/* Boutons Auth */}
                 {isAuthenticated ? (

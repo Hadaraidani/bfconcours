@@ -135,3 +135,45 @@ export interface CustomExamConfig {
   duration: number;
   categories: Category[];
 }
+
+// Types pour le système de notifications
+export type NotificationType = 'success' | 'error' | 'info' | 'warning';
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+  duration?: number; // Durée d'affichage en ms (0 = persistant)
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+// Types pour le système de délibération (envoi programmé des résultats)
+export type ScheduledResultStatus = 'pending' | 'sent' | 'error';
+
+export interface ScheduledResult {
+  id: string;
+  submission_id: string;
+  user_email: string | null;
+  user_phone: string | null;
+  candidate_name: string | null;
+  concours_name: string | null;
+  score: number | null;
+  score_final: number | null;
+  total_questions: number | null;
+  correct_answers: number | null;
+  wrong_answers: number | null;
+  unanswered: number | null;
+  proctoring_penalty: number | null;
+  correction_url: string | null;
+  scheduled_at: string | null;
+  status: ScheduledResultStatus;
+  sent_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}

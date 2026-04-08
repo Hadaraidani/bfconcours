@@ -15,11 +15,11 @@
  */
 
 import { useState, useEffect } from 'react';
-import emailjs from '@emailjs/browser';
 import { QuizResult, Question, Category } from '../types';
 import { generateCorrectionUrl } from '../services/quizService';
-import { EMAILJS_CONFIG } from '../config/emailjs';
+import { createScheduledResult } from '../services/scheduledResultsService';
 import { MathRenderer } from './MathRenderer';
+import { useAuth } from '../contexts/AuthContext';
 
 // Labels des catégories
 const categoryLabels: Record<Category, string> = {
@@ -75,66 +75,22 @@ interface CategoryPerformance {
 }
 
 export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
-  const [sendStatus, setSendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const { user } = useAuth();
+  const [sendStatus, setSendStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showCorrection, setShowCorrection] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentStep, setCurrentStep] = useState(0);
   
   const isCustomExam = result.isCustomExam === true;
 
-  const steps = [
-    { label: 'Préparation de votre copie', icon: '📋' },
-    { label: 'Sauvegarde des réponses', icon: '💾' },
-    { label: 'Génération du rapport', icon: '📊' },
-    { label: 'Envoi à l\'administration', icon: '📧' },
-    { label: 'Confirmation', icon: '✅' },
-  ];
-
-  // Animation de progression
-  useEffect(() => {
-    if (sendStatus === 'sending') {
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + Math.random() * 15;
-        });
-      }, 500);
-
-      const stepInterval = setInterval(() => {
-        setCurrentStep((prev) => {
-          if (prev >= 3) {
-            clearInterval(stepInterval);
-            return 3;
-          }
-          return prev + 1;
-        });
-      }, 1500);
-
-      return () => {
-        clearInterval(progressInterval);
-        clearInterval(stepInterval);
-      };
-    }
-    
-    if (sendStatus === 'success') {
-      setProgress(100);
-      setCurrentStep(4);
-    }
-  }, [sendStatus]);
-
-  // Envoyer les résultats à l'administrateur
+  // Enregistrer le résultat pour envoi programmé (pas d'envoi automatique)
   useEffect(() => {
     if (isCustomExam) {
-      console.log('Examen personnalisé - pas d\'envoi à l\'administrateur');
+      console.log('Examen personnalisé - pas d\'enregistrement pour envoi');
       return;
     }
 
-    async function sendResults() {
-      setSendStatus('sending');
+    async function registerResult() {
+      setSendStatus('saving');
 
       try {
         let correctionUrl: string;
@@ -152,63 +108,29 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
         
         console.log('🔗 URL de correction:', correctionUrl);
 
-        // 2. Calculer les données de proctoring
-        // totalPointsPenalty est NÉGATIF (ex: -5), on prend la valeur absolue pour l'affichage
-        const proctoringPenaltyRaw = result.proctoringData?.totalPointsPenalty || 0; // ex: -5
-        const proctoringPenaltyAbs = Math.abs(proctoringPenaltyRaw); // ex: 5 (pour l'affichage)
-        
-        // Si scoreFinal existe déjà dans result (calculé par Supabase), l'utiliser
-        // Sinon calculer: score - |pénalité|
+        // Calculer les données de proctoring
+        const proctoringPenaltyRaw = result.proctoringData?.totalPointsPenalty || 0;
+        const proctoringPenaltyAbs = Math.abs(proctoringPenaltyRaw);
         const scoreFinal = result.scoreFinal ?? Math.max(0, result.score - proctoringPenaltyAbs);
-        
-        // Générer le HTML des détails d'infractions
-        let proctoringDetailsHtml = '';
-        if (result.proctoringData?.penaltySummary && result.proctoringData.penaltySummary.length > 0) {
-          proctoringDetailsHtml = result.proctoringData.penaltySummary.map((item) => 
-            `<div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6;">
-              <span style="color: #374151;">${item.count}x ${item.category}</span>
-              <span style="color: #dc2626; font-weight: bold;">${item.totalPoints} pts</span>
-            </div>`
-          ).join('');
-        } else {
-          proctoringDetailsHtml = '<p style="color: #16a34a; text-align: center; padding: 10px 0;">Aucune infraction détectée</p>';
-        }
-        
-        // 3. Envoyer l'email via EmailJS
-        const templateParams = {
-          to_email: EMAILJS_CONFIG.adminEmail,
-          candidate_name: `${result.user.prenom} ${result.user.nom}`,
-          candidate_phone: result.user.telephone,
-          concours_name: result.concours,
+
+        // Enregistrer le résultat en attente d'envoi (PAS d'envoi automatique)
+        await createScheduledResult({
+          submissionId: result.submissionId || `local-${Date.now()}`,
+          userEmail: user?.email || null, // Email Gmail si le candidat est connecté
+          userPhone: result.user.telephone || null,
+          candidateName: `${result.user.prenom} ${result.user.nom}`,
+          concoursName: result.concours,
           score: result.score,
-          score_final: scoreFinal,
-          total_questions: result.totalQuestions,
-          correct_count: result.bonnesReponses,
-          wrong_count: result.mauvaisesReponses,
-          unanswered_count: result.sansReponse,
-          proctoring_penalty: proctoringPenaltyAbs,
-          proctoring_details: proctoringDetailsHtml,
-          submission_date: new Date().toLocaleString('fr-FR', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          correction_url: correctionUrl,
-        };
+          scoreFinal: scoreFinal,
+          totalQuestions: result.totalQuestions,
+          correctAnswers: result.bonnesReponses,
+          wrongAnswers: result.mauvaisesReponses,
+          unanswered: result.sansReponse,
+          proctoringPenalty: proctoringPenaltyAbs,
+          correctionUrl: correctionUrl,
+        });
 
-        await emailjs.send(
-          EMAILJS_CONFIG.serviceId,
-          EMAILJS_CONFIG.templateId,
-          templateParams,
-          EMAILJS_CONFIG.publicKey
-        );
-
-        console.log('✅ Email envoyé avec succès');
-        
-        // Petite pause pour l'animation
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log('✅ Résultat enregistré pour envoi programmé (aucun email envoyé)');
         setSendStatus('success');
 
       } catch (err) {
@@ -218,7 +140,7 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
       }
     }
 
-    sendResults();
+    registerResult();
   }, [result, questions, isCustomExam]);
 
   // Calculer les performances par catégorie
@@ -594,98 +516,24 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-emerald-50 py-4 sm:py-8">
       <div className="max-w-2xl mx-auto px-4">
         
-        {/* Statut: Envoi en cours */}
-        {sendStatus === 'sending' && (
+        {/* Statut: Enregistrement en cours */}
+        {sendStatus === 'saving' && (
           <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-            {/* Header animé */}
             <div className="bg-gradient-to-r from-green-500 via-green-600 to-emerald-600 p-8 text-white relative overflow-hidden">
-              {/* Particules animées */}
-              <div className="absolute inset-0 overflow-hidden">
-                {[...Array(20)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute w-2 h-2 bg-white/20 rounded-full animate-pulse"
-                    style={{
-                      left: `${Math.random() * 100}%`,
-                      top: `${Math.random() * 100}%`,
-                      animationDelay: `${Math.random() * 2}s`,
-                      animationDuration: `${2 + Math.random() * 2}s`,
-                    }}
-                  ></div>
-                ))}
-              </div>
-              
               <div className="relative text-center">
-                {/* Animation de chargement */}
                 <div className="relative w-24 h-24 mx-auto mb-6">
                   <svg className="w-24 h-24 animate-spin" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="none"
-                      stroke="rgba(255,255,255,0.2)"
-                      strokeWidth="8"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="none"
-                      stroke="white"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray="200"
-                      strokeDashoffset={200 - (progress / 100) * 200}
-                      className="transition-all duration-500"
-                    />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+                    <circle cx="50" cy="50" r="40" fill="none" stroke="white" strokeWidth="8" strokeLinecap="round" strokeDasharray="200" strokeDashoffset="100" className="transition-all duration-500" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-2xl font-bold">{Math.round(progress)}%</span>
+                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                   </div>
                 </div>
-                
-                <h1 className="text-2xl font-bold mb-2">Envoi en cours</h1>
-                <p className="text-green-100">Veuillez patienter...</p>
-              </div>
-            </div>
-
-            {/* Étapes de progression */}
-            <div className="p-6">
-              <div className="space-y-4">
-                {steps.map((step, index) => (
-                  <div
-                    key={index}
-                    className={`flex items-center gap-4 p-4 rounded-xl transition-all duration-500 ${
-                      index < currentStep
-                        ? 'bg-green-50 border border-green-200'
-                        : index === currentStep
-                        ? 'bg-blue-50 border border-blue-200 animate-pulse'
-                        : 'bg-gray-50 border border-gray-200 opacity-50'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
-                      index < currentStep
-                        ? 'bg-green-500 text-white'
-                        : index === currentStep
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-300 text-gray-500'
-                    }`}>
-                      {index < currentStep ? (
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      ) : (
-                        <span>{step.icon}</span>
-                      )}
-                    </div>
-                    <span className={`font-medium ${
-                      index <= currentStep ? 'text-gray-800' : 'text-gray-400'
-                    }`}>
-                      {step.label}
-                    </span>
-                  </div>
-                ))}
+                <h1 className="text-2xl font-bold mb-2">Enregistrement en cours</h1>
+                <p className="text-green-100">Sauvegarde de votre copie...</p>
               </div>
             </div>
           </div>
@@ -721,10 +569,10 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
                 </div>
                 
                 <h1 className="text-2xl sm:text-3xl font-bold mb-2">
-                  Copie envoyée avec succès !
+                  Copie enregistrée avec succès !
                 </h1>
                 <p className="text-green-100">
-                  Votre copie a été transmise à l'administration
+                  Votre copie a été enregistrée. L'administration vous contactera pour les résultats.
                 </p>
               </div>
             </div>
@@ -858,10 +706,10 @@ export function ResultPage({ result, questions, onGoHome }: ResultPageProps) {
                 </div>
                 
                 <h1 className="text-2xl font-bold mb-2">
-                  Erreur d'envoi
+                  Erreur d'enregistrement
                 </h1>
                 <p className="text-red-100">
-                  Un problème est survenu lors de l'envoi
+                  Un problème est survenu lors de l'enregistrement de votre copie
                 </p>
               </div>
             </div>
